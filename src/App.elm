@@ -7,6 +7,7 @@ import Browser
 import File exposing (File)
 import File.Select as Select
 import Task
+import Bytes exposing (Bytes)
 
 main : Program Flags Model Msg
 main = 
@@ -19,13 +20,13 @@ main =
 
 type alias Model = 
   { machine : Chip16
-  , file : Maybe String
+  , file : Maybe Bytes
   }
 
 type Msg
   = FileRequested
   | FileLoaded File
-  | FileContentLoaded String
+  | FileContentLoaded Bytes
 
 type alias Flags = ()
 
@@ -42,16 +43,26 @@ init () =
 view : Model -> Html Msg
 view model =
   div []
-    [ text ("File = " ++ Debug.toString model.file),
-      br [] [],
-      button [ class "btn btn-primary", onClick FileRequested ] [ text "Load ROM" ] ]
+    [ text ("File = " ++ Debug.toString model.file)
+    , br [] []
+    , button [ class "btn btn-primary", onClick FileRequested ] [ text "Load ROM" ]
+    , br [] []
+    , button [ class "btn btn-success" ] [ text "Step" ]
+    , button [ class "btn btn-warning" ] [ text "Reset" ]
+    , br [] []
+    , text ("PC: "
+            ++ Debug.toString model.machine.cpu.pc
+            ++ ", SP: "
+            ++ Debug.toString model.machine.cpu.sp
+            ++ ", Flags: "
+            ++ Debug.toString model.machine.cpu.flags) ]
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     FileRequested -> (model, Select.file ["application/octet-stream"] FileLoaded)
-    FileLoaded f -> (model, Task.perform FileContentLoaded (File.toString f))
-    FileContentLoaded s -> ({ model | file = Just s }, Cmd.none)
+    FileLoaded f -> (model, Task.perform FileContentLoaded (File.toBytes f))
+    FileContentLoaded b -> ({ model | file = Just b }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
