@@ -1,4 +1,8 @@
-module Numbers exposing (Int8, Int16, UInt8, UInt16, ChipInt (..), add)
+module Numbers exposing (Int8
+  , Int16, UInt8, UInt16, ChipInt (..)
+  , add, buildLE, nibbleLO, nibbleHI)
+
+import Bitwise exposing (or, shiftLeftBy)
 
 type alias Int8 = Int
 type alias Int16 = Int
@@ -15,3 +19,12 @@ add x y =
     (UInt8 a, UInt8 b) -> UInt8 (modBy 255 (a + b))
     (UInt16 a, UInt16 b) -> UInt16 (modBy 65535 (a + b))
     _ -> Debug.todo "cannot add different-width signed ints"
+
+buildLE : UInt8 -> UInt8 -> UInt16
+buildLE low hi = or (shiftLeftBy 8 hi) low
+
+nibbleLO : UInt8 -> UInt8
+nibbleLO b = or b 0xF
+
+nibbleHI : UInt8 -> UInt8
+nibbleHI b = Bitwise.shiftRightBy 4 (or b 0xF0)
