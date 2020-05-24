@@ -32,25 +32,47 @@ initCpu =
       , overflow = False
       , negative = False}}
 
+set_rx : Cpu -> Int -> UInt16 -> Cpu
+set_rx cpu rx val
+  = { cpu | regs = Slice.set rx val cpu.regs }
+
+get_rx : Cpu -> Int -> Maybe UInt16
+get_rx cpu rx = Slice.get rx cpu.regs
+
+set_sp : Cpu -> UInt16 -> Cpu
+set_sp cpu val
+  = { cpu | sp = val }
+
 init : Chip16
 init = 
   { cpu = initCpu,
     memory = Memory.init }
 
 opLoad_RegImm : Chip16 -> Int -> UInt16 -> Chip16
-opLoad_RegImm machine reg val = machine
+opLoad_RegImm machine rx val
+  = { machine | cpu = set_rx machine.cpu rx val }
 
 opLoad_SpImm : Chip16 -> UInt16 -> Chip16
-opLoad_SpImm machine val = machine
+opLoad_SpImm machine val
+  = { machine | cpu = set_sp machine.cpu val }
 
 opLoad_RegMem : Chip16 -> Int -> UInt16 -> Chip16
-opLoad_RegMem machine reg addr = machine
+opLoad_RegMem machine rx addr =
+  case Memory.get addr machine.memory of
+    Just val -> { machine | cpu = set_rx machine.cpu rx val }
+    Nothing -> Debug.todo "invalid memory address: " ++ (Debug.toString addr)
 
 opLoad_RegReg : Chip16 -> Int -> Int -> Chip16
-opLoad_RegReg machine rx ry = machine
+opLoad_RegReg machine rx ry =
+  case Memory.get rx machine.memory of
+    Just val -> { machine | cpu = set_rx machine.cpu rx val }
+    Nothing -> Debug.todo "invalid memory address: " ++ (Debug.toString rx)
 
 opMov : Chip16 -> Int -> Int -> Chip16
-opMov machine rx ry = machine
+opMov machine rx ry =
+  case get_rx machine.cpu ry of
+    Just val -> { machine | cpu = set_rx machine.cpu rx val }
+    Nothing -> Debug.todo "invalid register: " ++ (Debug.toString ry)
 
 opStore_Imm : Chip16 -> Int8 -> UInt16 -> Chip16
 opStore_Imm machine rx addr = machine
