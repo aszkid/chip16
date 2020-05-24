@@ -361,12 +361,12 @@ opMul3 machine rx ry rz =
 div : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
 div x y cpu =
   let
-    (res, rem) = case Numbers.div (I16 x) (I16 y) of
+    (res, remainder) = case Numbers.div (I16 x) (I16 y) of
       (I16 r, rr) -> (r, rr)
       _ -> Debug.todo "div failure"
     zero = isZero (I16 res)
     negative = isNeg (I16 res)
-    flags = [(FCarry, rem), (FZero, zero), (FNegative, negative)]
+    flags = [(FCarry, remainder), (FZero, zero), (FNegative, negative)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -432,10 +432,43 @@ opMod3 machine rx ry rz =
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
     _ -> Debug.todo "invalid register"
 
+{-- given two numbers and a CPU, take the remainder of the first
+    divided by the second, returning the result and a new CPU with updated flags --}
+rem : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
+rem x y cpu =
+  let
+    res = case Numbers.rem (I16 x) (I16 y) of
+      (I16 r) -> r
+      _ -> Debug.todo "mod failed"
+    zero = isZero (I16 res)
+    negative = isNeg (I16 res)
+    flags = [(FZero, zero), (FNegative, negative)]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
 
-opRemi machine rx hhll = machine
-opRem2 machine rx ry = machine
-opRem3 machine rx ry rz = machine
+opRemi : Chip16 -> Int8 -> Int16 -> Chip16
+opRemi machine rx hhll = 
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case rem vx hhll machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opRem2 : Chip16 -> Int8 -> Int8 -> Chip16
+opRem2 machine rx ry = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case rem vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opRem3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
+opRem3 machine rx ry rz = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case rem vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rz res }
+    _ -> Debug.todo "invalid register"
 
 opShl machine rx n = machine
 opShr machine rx n = machine
@@ -577,7 +610,7 @@ dispatch machine a b c d =
       0xA3 -> opModi machine rx (toi16 (U16 hhll))
       0xA4 -> opMod2 machine rx ry
       0xA5 -> opMod3 machine rx ry rz
-      0xA6 -> opRemi machine rx hhll
+      0xA6 -> opRemi machine rx (toi16 (U16 hhll))
       0xA7 -> opRem2 machine rx ry
       0xA8 -> opRem3 machine rx ry rz
       -- Bx Logical/Arithmetic Shifts

@@ -1,6 +1,6 @@
 module Numbers exposing 
   ( Int8, Int16, UInt8, UInt16, ChipInt (..)
-  , add, sub, neg, mul, div, mod, and, or, xor
+  , add, sub, neg, mul, div, mod, rem, and, or, xor
   , buildLE, nibbleLO, nibbleHI
   , i8from, i16from, u16from
   , to, tou16, toi16
@@ -123,9 +123,9 @@ div_ : Int -> Int -> (Int, Bool)
 div_ x y =
   let
     res = x // y
-    rem = remainderBy y x /= 0
+    remainder = remainderBy y x /= 0
   in
-    (res, rem)
+    (res, remainder)
 
 -- given x, y return x / y and remainder!=0
 div : ChipInt -> ChipInt -> (ChipInt, Bool)
@@ -133,10 +133,10 @@ div x y =
   case (x, y) of
     (I8 (Int8 a), I8 (Int8 b)) ->
       case div_ a b of
-        (res, rem) -> (I8 (Int8 res), rem)
+        (res, remainder) -> (I8 (Int8 res), remainder)
     (I16 (Int16 a), I16 (Int16 b)) ->
       case div_ a b of
-        (res, rem) -> (I16 (Int16 res), rem)
+        (res, remainder) -> (I16 (Int16 res), remainder)
     _ -> Debug.todo "no can do yet"
 
 mod : ChipInt -> ChipInt -> ChipInt
@@ -144,6 +144,13 @@ mod x by =
   case (x, by) of
     (I8 (Int8 a), I8 (Int8 b)) -> I8 (Int8 (modBy b a))
     (I16 (Int16 a), I16 (Int16 b)) -> I16 (Int16 (modBy b a))
+    _ -> Debug.todo "no can do yet"
+
+rem : ChipInt -> ChipInt -> ChipInt
+rem x by =
+  case (x, by) of
+    (I8 (Int8 a), I8 (Int8 b)) -> I8 (Int8 (remainderBy b a))
+    (I16 (Int16 a), I16 (Int16 b)) -> I16 (Int16 (remainderBy b a))
     _ -> Debug.todo "no can do yet"
 
 and : ChipInt -> ChipInt -> ChipInt
