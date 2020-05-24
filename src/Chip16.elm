@@ -74,6 +74,20 @@ add x y cpu =
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
+sub : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
+sub x y cpu =
+  let
+    (res, borrow) = case Numbers.sub (I16 x) (I16 y) of
+      (I16 r, b) -> (r, b)
+      _ -> Debug.todo "sub failure"
+    zero = isZero (I16 res)
+    overflow = (isPos (I16 res) && isNeg (I16 x) && isPos (I16 y))
+      || (isNeg (I16 res) && isPos (I16 x) && isNeg (I16 y))
+    negative = isNeg (I16 res)
+    flags = [(FCarry, borrow), (FZero, zero), (FOverflow, overflow), (FNegative, negative)]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
+
 init : Chip16
 init = 
   { cpu = initCpu,
@@ -139,7 +153,13 @@ opAdd3 machine rx ry rz =
     _ ->  Debug.todo "invalid registers"
 
 
-opSubi machine rx hhll = machine
+opSubi : Chip16 -> Int8 -> Int16 -> Chip16
+opSubi machine rx hhll =
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case sub vx hhll machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register rx"
 opSub2 machine rx ry = machine
 opSub3 machine rx ry rz = machine
 opCmpi machine rx hhll = machine
@@ -283,7 +303,7 @@ dispatch machine a b c d =
       0x41 -> opAdd2 machine rx ry
       0x42 -> opAdd3 machine rx ry rz
       -- 5x Subtraction
-      0x50 -> opSubi machine rx hhll
+      0x50 -> opSubi machine rx (toi16 (U16 hhll))
       0x51 -> opSub2 machine rx ry
       0x52 -> opSub3 machine rx ry rz
       0x53 -> opCmpi machine rx hhll

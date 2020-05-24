@@ -1,6 +1,7 @@
 module Numbers exposing 
   ( Int8, Int16, UInt8, UInt16, ChipInt (..)
-  , add, buildLE, nibbleLO, nibbleHI
+  , add, sub, neg
+  , buildLE, nibbleLO, nibbleHI
   , i8from, i16from, u16from
   , to, tou16, toi16
   , isNeg, isPos, isZero)
@@ -79,6 +80,24 @@ add x y =
       case add_ a b 65536 of
         (res, carry) -> (U16 (UInt16 res), carry)
     _ -> Debug.todo "cannot add different-width ints"
+
+neg : ChipInt -> ChipInt
+neg x =
+  case x of
+    I8 (Int8 v) -> I8 (Int8 (and (Bitwise.complement v + 1) 0xFF))
+    I16 (Int16 v) -> I16 (Int16 (and (Bitwise.complement v + 1) 0xFFFF))
+    _ -> Debug.todo "no can do"
+
+sub : ChipInt -> ChipInt -> (ChipInt, Bool)
+sub x y =
+  case (x, y, neg y) of
+    (I8 (Int8 a), I8 (Int8 b), I8 (Int8 bneg)) ->
+      case add_ a bneg 256 of
+        (res, _) -> (I8 (Int8 res), b > a)
+    (I16 (Int16 a), I16 (Int16 b), I16 (Int16 bneg)) ->
+      case add_ a bneg 65536 of
+        (res, _) -> (I16 (Int16 res), b > a)
+    _ -> Debug.todo "no can do yet"
 
 isNeg : ChipInt -> Bool
 isNeg n = to n < 0
