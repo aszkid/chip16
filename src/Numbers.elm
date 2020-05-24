@@ -1,8 +1,8 @@
 module Numbers exposing 
   ( Int8, Int16, UInt8, UInt16, ChipInt (..)
   , add, buildLE, nibbleLO, nibbleHI
-  , i8from, i16from
-  , to
+  , i8from, i16from, u16from
+  , to, tou16, toi16
   , isNeg, isPos, isZero)
 
 import Bitwise exposing (or, shiftLeftBy)
@@ -25,6 +25,10 @@ i8from x = Int8 (Bitwise.and 0xFF x)
 i16from : Int -> Int16
 i16from x = Int16 (Bitwise.and 0xFFFF x)
 
+u16from : Int -> UInt16
+u16from x = UInt16 (Bitwise.and 0xFFFF x)
+
+-- natural representation of the given ChipInt
 to : ChipInt -> Int
 to x =
   case x of
@@ -32,6 +36,22 @@ to x =
     I16 (Int16 v) -> Bitwise.and 0x7FFF v + -1 * Bitwise.and 0x8000 v
     U8 (UInt8 v) -> v
     U16 (UInt16 v) -> v
+
+tou16 : ChipInt -> UInt16
+tou16 x =
+  case x of
+    I8 (Int8 v) -> (UInt16 v)
+    I16 (Int16 v) -> (UInt16 v)
+    U8 (UInt8 v) -> (UInt16 v)
+    U16 v -> v
+
+toi16 : ChipInt -> Int16
+toi16 x =
+  case x of
+    I8 (Int8 v) -> Debug.todo "widening i8 is unimplemented"
+    I16 v -> v
+    U8 (UInt8 v) -> (Int16 v)
+    U16 (UInt16 v) -> (Int16 v)
 
 add_ : Int -> Int -> Int -> (Int, Bool)
 add_ x y mod =
@@ -70,11 +90,11 @@ isZero : ChipInt -> Bool
 isZero n = to n == 0
 
 
-buildLE : UInt8 -> UInt8 -> UInt16
-buildLE (UInt8 low) (UInt8 hi) = UInt16 (or (shiftLeftBy 8 hi) low)
+buildLE : Int8 -> Int8 -> UInt16
+buildLE (Int8 low) (Int8 hi) = UInt16 (or (shiftLeftBy 8 hi) low)
 
-nibbleLO : UInt8 -> UInt8
-nibbleLO (UInt8 b) = UInt8 (or b 0xF)
+nibbleLO : Int8 -> Int8
+nibbleLO (Int8 b) = Int8 (or b 0xF)
 
-nibbleHI : UInt8 -> UInt8
-nibbleHI (UInt8 b) = UInt8 (Bitwise.shiftRightBy 4 (or b 0xF0))
+nibbleHI : Int8 -> Int8
+nibbleHI (Int8 b) = Int8 (Bitwise.shiftRightBy 4 (or b 0xF0))

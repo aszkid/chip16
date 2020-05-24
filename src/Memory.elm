@@ -5,6 +5,7 @@ import Slice exposing (Slice)
 
 type Memory = Memory (Slice Int16)
 
+init : Memory
 init = Memory (Slice.new 4096 (i16from 0))
 
 get : UInt16 -> Memory -> Maybe Int16

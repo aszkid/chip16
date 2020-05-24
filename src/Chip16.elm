@@ -21,23 +21,26 @@ type alias Chip16 =
   { cpu : Cpu,
     memory : Memory }
 
-initCpu : Cpu
-initCpu = 
-  { pc = 0
-  , sp = 0
-  , regs = Slice.new 16 0
-  , flags = 
-      { carry = False
+initFlags : Flags
+initFlags
+  = { carry = False
       , zero = False
       , overflow = False
-      , negative = False}}
+      , negative = False}
 
-set_rx : Cpu -> Int -> UInt16 -> Cpu
+initCpu : Cpu
+initCpu = 
+  { pc = u16from 0
+  , sp = u16from 0
+  , regs = Slice.new 16 (i16from 0)
+  , flags = initFlags}
+
+set_rx : Cpu -> Int8 -> Int16 -> Cpu
 set_rx cpu rx val
-  = { cpu | regs = Slice.set rx val cpu.regs }
+  = { cpu | regs = Slice.set (to (I8 rx)) val cpu.regs }
 
-get_rx : Cpu -> Int -> Maybe UInt16
-get_rx cpu rx = Slice.get rx cpu.regs
+get_rx : Cpu -> Int8 -> Maybe Int16
+get_rx cpu rx = Slice.get (to (I8 rx)) cpu.regs
 
 set_sp : Cpu -> UInt16 -> Cpu
 set_sp cpu val
@@ -61,8 +64,9 @@ set_flags list flags =
 add : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
 add x y cpu =
   let
-    (res, carry) = case add (I16 x) (I16 y) of
+    (res, carry) = case Numbers.add (I16 x) (I16 y) of
       (I16 r, c) -> (r, c)
+      _ -> Debug.todo "add failure"
     zero = isZero (I16 res)
     overflow = isPos (I16 res) && isNeg (I16 x) && isNeg (I16 y)
     negative = isNeg (I16 res)
@@ -75,7 +79,7 @@ init =
   { cpu = initCpu,
     memory = Memory.init }
 
-opLoad_RegImm : Chip16 -> Int -> UInt16 -> Chip16
+opLoad_RegImm : Chip16 -> Int8 -> Int16 -> Chip16
 opLoad_RegImm machine rx val
   = { machine | cpu = set_rx machine.cpu rx val }
 
@@ -83,43 +87,40 @@ opLoad_SpImm : Chip16 -> UInt16 -> Chip16
 opLoad_SpImm machine val
   = { machine | cpu = set_sp machine.cpu val }
 
-opLoad_RegMem : Chip16 -> Int -> UInt16 -> Chip16
+opLoad_RegMem : Chip16 -> Int8 -> UInt16 -> Chip16
 opLoad_RegMem machine rx addr =
   case Memory.get addr machine.memory of
     Just val -> { machine | cpu = set_rx machine.cpu rx val }
-    Nothing -> Debug.todo "invalid memory address: " ++ (Debug.toString addr)
+    _ -> Debug.todo ("invalid memory address: " ++ (Debug.toString addr))
 
-opLoad_RegReg : Chip16 -> Int -> Int -> Chip16
-opLoad_RegReg machine rx ry =
-  case Memory.get rx machine.memory of
-    Just val -> { machine | cpu = set_rx machine.cpu rx val }
-    Nothing -> Debug.todo "invalid memory address: " ++ (Debug.toString rx)
+opLoad_RegReg : Chip16 -> Int8 -> Int8 -> Chip16
+opLoad_RegReg machine rx ry = Debug.todo "foobar!"
 
-opMov : Chip16 -> Int -> Int -> Chip16
+opMov : Chip16 -> Int8 -> Int8 -> Chip16
 opMov machine rx ry =
   case get_rx machine.cpu ry of
     Just val -> { machine | cpu = set_rx machine.cpu rx val }
-    Nothing -> Debug.todo "invalid register: " ++ (Debug.toString ry)
+    _ -> Debug.todo ("invalid register: " ++ (Debug.toString ry))
 
 opStore_Imm : Chip16 -> Int8 -> UInt16 -> Chip16
 opStore_Imm machine rx addr =
   case get_rx machine.cpu rx of
     Just val -> { machine | memory = Memory.set addr val machine.memory }
-    Nothing -> Debug.todo "invalid register: " ++ (Debug.toString rx)
+    _ -> Debug.todo ("invalid register: " ++ (Debug.toString rx))
 
-opStore_Reg : Chip16 -> Int8 -> UInt16 -> Chip16
+opStore_Reg : Chip16 -> Int8 -> Int8 -> Chip16
 opStore_Reg machine rx ry =
   case get_rx machine.cpu ry of
-    Just addr -> { machine | memory = Memory.set addr rx machine.memory }
-    Nothing -> Debug.todo "invalid register: " ++ (Debug.toString ry)
+    Just addr -> { machine | memory = Memory.set (tou16 (I16 addr)) (toi16 (I8 rx)) machine.memory }
+    _ -> Debug.todo ("invalid register: " ++ (Debug.toString ry))
 
-opAddi : Chip16 -> Int8 -> UInt16 -> Chip16
+opAddi : Chip16 -> Int8 -> Int16 -> Chip16
 opAddi machine rx val =
   case get_rx machine.cpu rx of
     Just vrx ->
       case add vrx val machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    Nothing ->  Debug.todo "invalid register: " ++ (Debug.toString rx)
+    _ ->  Debug.todo ("invalid register: " ++ (Debug.toString rx))
 
 opAdd2 : Chip16 -> Int8 -> Int8 -> Chip16
 opAdd2 machine rx ry =
@@ -127,7 +128,7 @@ opAdd2 machine rx ry =
     (Just vx, Just vy) ->
       case add vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    Nothing ->  Debug.todo "invalid registers"
+    _ ->  Debug.todo "invalid registers"
 
 opAdd3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
 opAdd3 machine rx ry rz =
@@ -135,10 +136,91 @@ opAdd3 machine rx ry rz =
     (Just vx, Just vy, Just vz) ->
       case add vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    Nothing ->  Debug.todo "invalid registers"
+    _ ->  Debug.todo "invalid registers"
+
+
+opSubi machine rx hhll = machine
+opSub2 machine rx ry = machine
+opSub3 machine rx ry rz = machine
+opCmpi machine rx hhll = machine
+opCmp machine rx ry = machine
+
+opAndi machine rx hhll = machine
+opAnd2 machine rx ry = machine
+opAnd3 machine rx ry rz = machine
+opTsti machine rx hhll = machine
+opTst machine rx ry = machine
+
+opOri machine rx hhll = machine
+opOr2 machine rx ry = machine
+opOr3 machine rx ry rz = machine
+
+opXori machine rx hhll = machine
+opXor2 machine rx ry = machine
+opXor3 machine rx ry rz = machine
+
+opMuli machine rx hhll = machine
+opMul2 machine rx ry = machine
+opMul3 machine rx ry rz = machine
+
+opDivi machine rx hhll = machine
+opDiv2 machine rx ry = machine
+opDiv3 machine rx ry rz = machine
+opModi machine rx hhll = machine
+opMod2 machine rx ry = machine
+opMod3 machine rx ry rz = machine
+opRemi machine rx hhll = machine
+opRem2 machine rx ry = machine
+opRem3 machine rx ry rz = machine
+
+opShl machine rx n = machine
+opShr machine rx n = machine
+opSar machine rx n = machine
+opSar2 machine rx ry = machine
+
+opPush machine rx = machine
+opPop machine rx = machine
+opPushAll machine = machine
+opPopAll machine = machine
+opPushf machine = machine
+opPopf machine = machine
+
+opPalAddr machine hhll = machine
+opPalReg machine rx = machine
+
+opNoti machine rx hhll = machine
+opNot1 machine rx = machine
+opNot2 machine rx ry = machine
+opNegi machine rx hhll = machine
+opNeg1 machine rx = machine
+opNeg2 machine rx ry = machine
+
+
+opCls machine = machine
+opVblnk machine = machine
+opBgc machine n = machine
+opSpr machine ll hh = machine
+opDrwMem machine rx ry hhll = machine
+opDrwReg machine rx ry rz = machine
+opRnd machine rx hhll = machine
+opFlip machine hflip vflip = machine
+opSnd0 machine = machine
+opSnd machine freq hhll = machine
+opSnp machine rx hhll = machine
+opSng machine ad vtsr = machine
+
+opJmpi machine hhll = machine
+opJmc machine hhll = machine
+opJx machine x hhll = machine
+opJme machine rx ry hhll = machine
+opCalli machine hhll = machine
+opRet machine = machine
+opJmp machine rx = machine
+opCx machine x hhll = machine
+opCall machine rx = machine
 
 -- attempt to dispatch an instruction from 4 bytes
-dispatch : Chip16 -> UInt8 -> UInt8 -> UInt8 -> UInt8 -> Chip16
+dispatch : Chip16 -> Int8 -> Int8 -> Int8 -> Int8 -> Chip16
 dispatch machine a b c d =
   let
     rx = nibbleLO b
@@ -152,19 +234,19 @@ dispatch machine a b c d =
     ad = b
     x = nibbleLO b
   in
-    case a of
+    case to (I8 a) of
       -- 0x Misc/Video/Audio
       0x00 -> machine
       0x01 -> opCls machine
-      0x02 -> opVblnk macine
+      0x02 -> opVblnk machine
       0x03 -> opBgc machine n
       0x04 -> opSpr machine ll hh
       0x05 -> opDrwMem machine rx ry hhll
       0x06 -> opDrwReg machine rx ry rz
       0x07 -> opRnd machine rx hhll
       0x08 ->
-        if b == 0 && c == 0 then
-          case d of
+        if isZero (I8 b) && isZero (I8 c) then
+          case to (I8 d) of
             0x00 -> opFlip machine False False
             0x01 -> opFlip machine False True
             0x02 -> opFlip machine True False
@@ -188,16 +270,16 @@ dispatch machine a b c d =
       0x17 -> opCx machine x hhll
       0x18 -> opCall machine rx
       -- 2x Loads
-      0x20 -> opLoad_RegImm machine rx hhll
+      0x20 -> opLoad_RegImm machine rx (toi16 (U16 hhll))
       0x21 -> opLoad_SpImm machine hhll
       0x22 -> opLoad_RegMem machine b hhll
       0x23 -> opLoad_RegReg machine rx ry
       0x24 -> opMov machine rx ry
       -- 3x Stores
-      0x30 -> opStore_Imm machine hhll b
+      0x30 -> opStore_Imm machine rx hhll
       0x31 -> opStore_Reg machine rx ry
       -- 4x Addition
-      0x40 -> opAddi machine rx hhll
+      0x40 -> opAddi machine rx (toi16 (U16 hhll))
       0x41 -> opAdd2 machine rx ry
       0x42 -> opAdd3 machine rx ry rz
       -- 5x Subtraction
