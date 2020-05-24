@@ -1,6 +1,6 @@
 module Numbers exposing 
   ( Int8, Int16, UInt8, UInt16, ChipInt (..)
-  , add, sub, neg
+  , add, sub, neg, and, or, xor
   , buildLE, nibbleLO, nibbleHI
   , i8from, i16from, u16from
   , to, tou16, toi16
@@ -84,8 +84,8 @@ add x y =
 neg : ChipInt -> ChipInt
 neg x =
   case x of
-    I8 (Int8 v) -> I8 (Int8 (and (Bitwise.complement v + 1) 0xFF))
-    I16 (Int16 v) -> I16 (Int16 (and (Bitwise.complement v + 1) 0xFFFF))
+    I8 (Int8 v) -> I8 (Int8 (Bitwise.and (Bitwise.complement v + 1) 0xFF))
+    I16 (Int16 v) -> I16 (Int16 (Bitwise.and (Bitwise.complement v + 1) 0xFFFF))
     _ -> Debug.todo "no can do"
 
 sub : ChipInt -> ChipInt -> (ChipInt, Bool)
@@ -99,6 +99,24 @@ sub x y =
         (res, _) -> (I16 (Int16 res), b > a)
     _ -> Debug.todo "no can do yet"
 
+and : ChipInt -> ChipInt -> ChipInt
+and x y =
+  case (x, y) of
+    (I16 (Int16 a), I16 (Int16 b)) -> I16 (Int16 (Bitwise.and a b))
+    _ -> Debug.todo "and unimpl"
+
+or : ChipInt -> ChipInt -> ChipInt
+or x y =
+  case (x, y) of
+    (I16 (Int16 a), I16 (Int16 b)) -> I16 (Int16 (Bitwise.or a b))
+    _ -> Debug.todo "or unimpl"
+
+xor : ChipInt -> ChipInt -> ChipInt
+xor x y =
+  case (x, y) of
+    (I16 (Int16 a), I16 (Int16 b)) -> I16 (Int16 (Bitwise.xor a b))
+    _ -> Debug.todo "xor unimpl"
+
 isNeg : ChipInt -> Bool
 isNeg n = to n < 0
 
@@ -110,10 +128,10 @@ isZero n = to n == 0
 
 
 buildLE : Int8 -> Int8 -> UInt16
-buildLE (Int8 low) (Int8 hi) = UInt16 (or (shiftLeftBy 8 hi) low)
+buildLE (Int8 low) (Int8 hi) = UInt16 (Bitwise.or (shiftLeftBy 8 hi) low)
 
 nibbleLO : Int8 -> Int8
-nibbleLO (Int8 b) = Int8 (and b 0xF)
+nibbleLO (Int8 b) = Int8 (Bitwise.and b 0xF)
 
 nibbleHI : Int8 -> Int8
-nibbleHI (Int8 b) = Int8 (Bitwise.shiftRightBy 4 (and b 0xF0))
+nibbleHI (Int8 b) = Int8 (Bitwise.shiftRightBy 4 (Bitwise.and b 0xF0))
