@@ -394,9 +394,45 @@ opDiv3 machine rx ry rz =
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
     _ -> Debug.todo "invalid register"
 
-opModi machine rx hhll = machine
-opMod2 machine rx ry = machine
-opMod3 machine rx ry rz = machine
+{-- given two numbers and a CPU, take the first modulo the second
+    returning the result and a new CPU with updated flags --}
+mod : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
+mod x y cpu =
+  let
+    res = case Numbers.mod (I16 x) (I16 y) of
+      (I16 r) -> r
+      _ -> Debug.todo "mod failed"
+    zero = isZero (I16 res)
+    negative = isNeg (I16 res)
+    flags = [(FZero, zero), (FNegative, negative)]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
+
+opModi : Chip16 -> Int8 -> Int16 -> Chip16
+opModi machine rx hhll = 
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case mod vx hhll machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opMod2 : Chip16 -> Int8 -> Int8 -> Chip16
+opMod2 machine rx ry = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case mod vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opMod3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
+opMod3 machine rx ry rz = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case mod vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rz res }
+    _ -> Debug.todo "invalid register"
+
+
 opRemi machine rx hhll = machine
 opRem2 machine rx ry = machine
 opRem3 machine rx ry rz = machine
@@ -538,7 +574,7 @@ dispatch machine a b c d =
       0xA0 -> opDivi machine rx (toi16 (U16 hhll))
       0xA1 -> opDiv2 machine rx ry
       0xA2 -> opDiv3 machine rx ry rz
-      0xA3 -> opModi machine rx hhll
+      0xA3 -> opModi machine rx (toi16 (U16 hhll))
       0xA4 -> opMod2 machine rx ry
       0xA5 -> opMod3 machine rx ry rz
       0xA6 -> opRemi machine rx hhll
