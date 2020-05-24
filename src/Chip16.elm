@@ -75,10 +75,16 @@ opMov machine rx ry =
     Nothing -> Debug.todo "invalid register: " ++ (Debug.toString ry)
 
 opStore_Imm : Chip16 -> Int8 -> UInt16 -> Chip16
-opStore_Imm machine rx addr = machine
+opStore_Imm machine rx addr =
+  case get_rx machine.cpu rx of
+    Just val -> { machine | memory = Memory.set addr val machine.memory }
+    Nothing -> Debug.todo "invalid register: " ++ (Debug.toString rx)
 
 opStore_Reg : Chip16 -> Int8 -> UInt16 -> Chip16
-opStore_Reg machine rx ry = machine
+opStore_Reg machine rx ry =
+  case get_rx machine.cpu ry of
+    Just addr -> { machine | memory = Memory.set addr rx machine.memory }
+    Nothing -> Debug.todo "invalid register: " ++ (Debug.toString ry)
 
 opAddi : Chip16 -> Int8 -> UInt16 -> Chip16
 opAddi machine rx addr = machine
