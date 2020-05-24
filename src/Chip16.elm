@@ -13,7 +13,7 @@ type alias Flags =
 type alias Cpu =
   { pc : UInt16,
     sp : UInt16,
-    regs : Slice UInt16,
+    regs : Slice Int16,
     flags : Flags
   }
 
@@ -42,6 +42,11 @@ get_rx cpu rx = Slice.get rx cpu.regs
 set_sp : Cpu -> UInt16 -> Cpu
 set_sp cpu val
   = { cpu | sp = val }
+
+add : Int16 -> Int16 -> Cpu -> Cpu
+add x y cpu =
+  let
+    res = 
 
 init : Chip16
 init = 
@@ -87,7 +92,7 @@ opStore_Reg machine rx ry =
     Nothing -> Debug.todo "invalid register: " ++ (Debug.toString ry)
 
 opAddi : Chip16 -> Int8 -> UInt16 -> Chip16
-opAddi machine rx addr = machine
+opAddi machine rx val = machine
 
 opAdd2 : Chip16 -> Int8 -> Int8 -> Chip16
 opAdd2 machine rx ry = machine
