@@ -254,7 +254,7 @@ or x y cpu =
   let
     res = case Numbers.or (I16 x) (I16 y) of
       (I16 r) -> r
-      _ -> Debug.todo "and failed"
+      _ -> Debug.todo "or failed"
     flags = [(FZero, isZero (I16 res)), (FNegative, isNeg (I16 res))]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
@@ -283,9 +283,39 @@ opOr3 machine rx ry rz =
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
     _ -> Debug.todo "invalid register"
 
-opXori machine rx hhll = machine
-opXor2 machine rx ry = machine
-opXor3 machine rx ry rz = machine
+xor : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
+xor x y cpu =
+  let
+    res = case Numbers.xor (I16 x) (I16 y) of
+      (I16 r) -> r
+      _ -> Debug.todo "xor failed"
+    flags = [(FZero, isZero (I16 res)), (FNegative, isNeg (I16 res))]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
+
+opXori : Chip16 -> Int8 -> Int16 -> Chip16
+opXori machine rx hhll = 
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case xor vx hhll machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opXor2 : Chip16 -> Int8 -> Int8 -> Chip16
+opXor2 machine rx ry = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case xor vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opXor3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
+opXor3 machine rx ry rz = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case xor vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rz res }
+    _ -> Debug.todo "invalid register"
 
 opMuli machine rx hhll = machine
 opMul2 machine rx ry = machine
@@ -427,7 +457,7 @@ dispatch machine a b c d =
       0x71 -> opOr2 machine rx ry
       0x72 -> opOr3 machine rx ry rz
       -- 8x Bitwise XOR
-      0x80 -> opXori machine rx hhll
+      0x80 -> opXori machine rx (toi16 (U16 hhll))
       0x81 -> opXor2 machine rx ry
       0x82 -> opXor3 machine rx ry rz
       -- 9x Multiplication
