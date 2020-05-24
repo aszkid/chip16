@@ -249,9 +249,39 @@ opTst machine rx ry =
         (_, cpu) -> { machine | cpu = cpu }
     _ -> Debug.todo "invalid register"
 
-opOri machine rx hhll = machine
-opOr2 machine rx ry = machine
-opOr3 machine rx ry rz = machine
+or : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
+or x y cpu =
+  let
+    res = case Numbers.or (I16 x) (I16 y) of
+      (I16 r) -> r
+      _ -> Debug.todo "and failed"
+    flags = [(FZero, isZero (I16 res)), (FNegative, isNeg (I16 res))]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
+
+opOri : Chip16 -> Int8 -> Int16 -> Chip16
+opOri machine rx hhll =
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case or vx hhll machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opOr2 : Chip16 -> Int8 -> Int8 -> Chip16
+opOr2 machine rx ry = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case or vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opOr3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
+opOr3 machine rx ry rz = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case or vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rz res }
+    _ -> Debug.todo "invalid register"
 
 opXori machine rx hhll = machine
 opXor2 machine rx ry = machine
@@ -393,7 +423,7 @@ dispatch machine a b c d =
       0x63 -> opTsti machine rx (toi16 (U16 hhll))
       0x64 -> opTst machine rx ry
       -- 7x Bitwise OR
-      0x70 -> opOri machine rx hhll
+      0x70 -> opOri machine rx (toi16 (U16 hhll))
       0x71 -> opOr2 machine rx ry
       0x72 -> opOr3 machine rx ry rz
       -- 8x Bitwise XOR
