@@ -1,6 +1,6 @@
 module Numbers exposing 
   ( Int8, Int16, UInt8, UInt16, ChipInt (..)
-  , add, sub, neg, mul, and, or, xor
+  , add, sub, neg, mul, div, and, or, xor
   , buildLE, nibbleLO, nibbleHI
   , i8from, i16from, u16from
   , to, tou16, toi16
@@ -119,6 +119,26 @@ mul x y =
         (res, carry) -> (I16 (Int16 res), carry)
     _ -> Debug.todo "no can do yet"
 
+div_ : Int -> Int -> (Int, Bool)
+div_ x y =
+  let
+    res = x // y
+    rem = (remainderBy y x) /= 0
+  in
+    (res, rem)
+
+
+-- given x, y return x / y and remainder!=0
+div : ChipInt -> ChipInt -> (ChipInt, Bool)
+div x y = 
+  case (x, y) of
+    (I8 (Int8 a), I8 (Int8 b)) ->
+      case div_ a b of
+        (res, rem) -> (I8 (Int8 res), rem)
+    (I16 (Int16 a), I16 (Int16 b)) ->
+      case div_ a b of
+        (res, rem) -> (I16 (Int16 res), rem)
+    _ -> Debug.todo "no can do yet"
 
 and : ChipInt -> ChipInt -> ChipInt
 and x y =

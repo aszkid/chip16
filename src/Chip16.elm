@@ -325,7 +325,7 @@ mul x y cpu =
   let
     (res, carry) = case Numbers.mul (I16 x) (I16 y) of
       (I16 r, c) -> (r, c)
-      _ -> Debug.todo "add failure"
+      _ -> Debug.todo "mul failure"
     zero = isZero (I16 res)
     negative = isNeg (I16 res)
     flags = [(FCarry, carry), (FZero, zero), (FNegative, negative)]
@@ -356,9 +356,44 @@ opMul3 machine rx ry rz =
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
     _ -> Debug.todo "invalid register"
 
-opDivi machine rx hhll = machine
-opDiv2 machine rx ry = machine
-opDiv3 machine rx ry rz = machine
+{-- given two numbers and a CPU, divide them
+    and return the result and a new CPU with updated flags --}
+div : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
+div x y cpu =
+  let
+    (res, rem) = case Numbers.div (I16 x) (I16 y) of
+      (I16 r, rr) -> (r, rr)
+      _ -> Debug.todo "div failure"
+    zero = isZero (I16 res)
+    negative = isNeg (I16 res)
+    flags = [(FCarry, rem), (FZero, zero), (FNegative, negative)]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
+
+opDivi : Chip16 -> Int8 -> Int16 -> Chip16
+opDivi machine rx hhll = 
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case div vx hhll machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opDiv2 : Chip16 -> Int8 -> Int8 -> Chip16
+opDiv2 machine rx ry = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case div vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opDiv3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
+opDiv3 machine rx ry rz = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case div vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rz res }
+    _ -> Debug.todo "invalid register"
+
 opModi machine rx hhll = machine
 opMod2 machine rx ry = machine
 opMod3 machine rx ry rz = machine
@@ -500,7 +535,7 @@ dispatch machine a b c d =
       0x91 -> opMul2 machine rx ry
       0x92 -> opMul3 machine rx ry rz
       -- Ax Division
-      0xA0 -> opDivi machine rx hhll
+      0xA0 -> opDivi machine rx (toi16 (U16 hhll))
       0xA1 -> opDiv2 machine rx ry
       0xA2 -> opDiv3 machine rx ry rz
       0xA3 -> opModi machine rx hhll
