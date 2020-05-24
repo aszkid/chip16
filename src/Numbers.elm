@@ -5,7 +5,7 @@ module Numbers exposing
   , to, tou16, toi16
   , isNeg, isPos, isZero)
 
-import Bitwise exposing (or, shiftLeftBy)
+import Bitwise exposing (and, or, shiftLeftBy)
 
 {-- opaque fixed-width int types.
     since we don't expose explicit constructors,
@@ -94,7 +94,7 @@ buildLE : Int8 -> Int8 -> UInt16
 buildLE (Int8 low) (Int8 hi) = UInt16 (or (shiftLeftBy 8 hi) low)
 
 nibbleLO : Int8 -> Int8
-nibbleLO (Int8 b) = Int8 (or b 0xF)
+nibbleLO (Int8 b) = Int8 (and b 0xF)
 
 nibbleHI : Int8 -> Int8
-nibbleHI (Int8 b) = Int8 (Bitwise.shiftRightBy 4 (or b 0xF0))
+nibbleHI (Int8 b) = Int8 (Bitwise.shiftRightBy 4 (and b 0xF0))

@@ -1,4 +1,4 @@
-module Chip16 exposing (Chip16, init)
+module Chip16 exposing (Chip16, init, dispatch)
 
 import Numbers exposing (..)
 import Slice exposing (Slice)
