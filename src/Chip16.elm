@@ -317,9 +317,44 @@ opXor3 machine rx ry rz =
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
     _ -> Debug.todo "invalid register"
 
-opMuli machine rx hhll = machine
-opMul2 machine rx ry = machine
-opMul3 machine rx ry rz = machine
+
+{-- given two numbers and a CPU, multiply them
+    and return the result and a new CPU with updated flags --}
+mul : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
+mul x y cpu =
+  let
+    (res, carry) = case Numbers.mul (I16 x) (I16 y) of
+      (I16 r, c) -> (r, c)
+      _ -> Debug.todo "add failure"
+    zero = isZero (I16 res)
+    negative = isNeg (I16 res)
+    flags = [(FCarry, carry), (FZero, zero), (FNegative, negative)]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
+
+opMuli : Chip16 -> Int8 -> Int16 -> Chip16
+opMuli machine rx hhll =
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case mul vx hhll machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opMul2 : Chip16 -> Int8 -> Int8 -> Chip16
+opMul2 machine rx ry = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case mul vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opMul3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
+opMul3 machine rx ry rz = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case mul vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rz res }
+    _ -> Debug.todo "invalid register"
 
 opDivi machine rx hhll = machine
 opDiv2 machine rx ry = machine
@@ -461,7 +496,7 @@ dispatch machine a b c d =
       0x81 -> opXor2 machine rx ry
       0x82 -> opXor3 machine rx ry rz
       -- 9x Multiplication
-      0x90 -> opMuli machine rx hhll
+      0x90 -> opMuli machine rx (toi16 (U16 hhll))
       0x91 -> opMul2 machine rx ry
       0x92 -> opMul3 machine rx ry rz
       -- Ax Division
