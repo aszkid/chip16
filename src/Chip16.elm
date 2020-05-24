@@ -43,10 +43,32 @@ set_sp : Cpu -> UInt16 -> Cpu
 set_sp cpu val
   = { cpu | sp = val }
 
-add : Int16 -> Int16 -> Cpu -> Cpu
+type FlagEnum = FCarry | FZero | FOverflow | FNegative
+set_flag : FlagEnum -> Bool -> Flags -> Flags
+set_flag flag val flags =
+  case flag of
+    FCarry -> { flags | carry = val }
+    FZero -> { flags | zero = val }
+    FOverflow -> { flags | overflow = val }
+    FNegative -> { flags | negative = val }
+
+set_flags : List (FlagEnum, Bool) -> Flags -> Flags
+set_flags list flags =
+  List.foldl (\(f, v) fs -> set_flag f v fs) flags list
+
+{-- given two numbers and a CPU, add them
+    and return the result and a new CPU with updated flags --}
+add : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
 add x y cpu =
   let
-    res = 
+    (res, carry) = case add (I16 x) (I16 y) of
+      (I16 r, c) -> (r, c)
+    zero = isZero (I16 res)
+    overflow = isPos (I16 res) && isNeg (I16 x) && isNeg (I16 y)
+    negative = isNeg (I16 res)
+    flags = [(FCarry, carry), (FZero, zero), (FOverflow, overflow), (FNegative, negative)]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
 
 init : Chip16
 init = 
@@ -92,13 +114,28 @@ opStore_Reg machine rx ry =
     Nothing -> Debug.todo "invalid register: " ++ (Debug.toString ry)
 
 opAddi : Chip16 -> Int8 -> UInt16 -> Chip16
-opAddi machine rx val = machine
+opAddi machine rx val =
+  case get_rx machine.cpu rx of
+    Just vrx ->
+      case add vrx val machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    Nothing ->  Debug.todo "invalid register: " ++ (Debug.toString rx)
 
 opAdd2 : Chip16 -> Int8 -> Int8 -> Chip16
-opAdd2 machine rx ry = machine
+opAdd2 machine rx ry =
+  case (get_rx machine.cpu rx, get_rx machine.cpu ry) of
+    (Just vx, Just vy) ->
+      case add vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    Nothing ->  Debug.todo "invalid registers"
 
 opAdd3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
-opAdd3 machine rx ry rz = machine
+opAdd3 machine rx ry rz =
+  case (get_rx machine.cpu rx, get_rx machine.cpu ry, get_rx machine.cpu rz) of
+    (Just vx, Just vy, Just vz) ->
+      case add vx vy machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rz res }
+    Nothing ->  Debug.todo "invalid registers"
 
 -- attempt to dispatch an instruction from 4 bytes
 dispatch : Chip16 -> UInt8 -> UInt8 -> UInt8 -> UInt8 -> Chip16

@@ -2,7 +2,8 @@ module Numbers exposing
   ( Int8, Int16, UInt8, UInt16, ChipInt (..)
   , add, buildLE, nibbleLO, nibbleHI
   , i8from, i16from
-  , to)
+  , to
+  , isNeg, isPos, isZero)
 
 import Bitwise exposing (or, shiftLeftBy)
 
@@ -58,6 +59,15 @@ add x y =
       case add_ a b 65536 of
         (res, carry) -> (U16 (UInt16 res), carry)
     _ -> Debug.todo "cannot add different-width ints"
+
+isNeg : ChipInt -> Bool
+isNeg n = to n < 0
+
+isPos : ChipInt -> Bool
+isPos n = to n > 0
+
+isZero : ChipInt -> Bool
+isZero n = to n == 0
 
 
 buildLE : UInt8 -> UInt8 -> UInt16
