@@ -1,6 +1,6 @@
 module Numbers exposing 
   ( Int8, Int16, UInt8, UInt16, ChipInt (..), Shift (..)
-  , add, sub, neg, mul, div, mod, rem, and, or, xor, shl, shr
+  , add, sub, neg, mul, div, mod, rem, and, or, xor, shl, shr, not
   , buildLE, nibbleLO, nibbleHI
   , i8from, i16from, u16from
   , to, tou16, toi16, tobits
@@ -207,6 +207,17 @@ shr x y t =
     (I8 (Int8 val), I8 (Int8 by)) -> I8 (Int8 (shr_ t 8 by val))
     (I16 (Int16 val), I16 (Int16 by)) -> I16 (Int16 (shr_ t 16 by val))
     _ -> Debug.todo "shr unimpl"
+
+not : ChipInt -> ChipInt
+not n =
+  let
+    doNot v = Bitwise.complement v
+  in
+    case n of
+      I8 (Int8 v) -> I8 (Int8 (doNot v))
+      I16 (Int16 v) -> I16 (Int16 (doNot v))
+      U8 (UInt8 v) -> U8 (UInt8 (doNot v))
+      U16 (UInt16 v) -> U16 (UInt16 (doNot v))
 
 isNeg : ChipInt -> Bool
 isNeg n = to n < 0

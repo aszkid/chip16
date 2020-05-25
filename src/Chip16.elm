@@ -648,12 +648,77 @@ opPopf machine =
 opPalAddr machine hhll = machine
 opPalReg machine rx = machine
 
-opNoti machine rx hhll = machine
-opNot1 machine rx = machine
-opNot2 machine rx ry = machine
-opNegi machine rx hhll = machine
-opNeg1 machine rx = machine
-opNeg2 machine rx ry = machine
+not : Int16 -> Cpu -> (Int16, Cpu)
+not v cpu = 
+  let
+    res = case Numbers.not (I16 v) of
+      I16 r -> r
+      _ -> Debug.todo "failed to not!"
+    zero = isZero (I16 res)
+    negative = isNeg (I16 res)
+    flags = [(FZero, zero), (FNegative, negative)]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
+
+neg : Int16 -> Cpu -> (Int16, Cpu)
+neg v cpu = 
+  let
+    res = case Numbers.neg (I16 v) of
+      I16 r -> r
+      _ -> Debug.todo "failed to neg!"
+    zero = isZero (I16 res)
+    negative = isNeg (I16 res)
+    flags = [(FZero, zero), (FNegative, negative)]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
+
+opNoti : Chip16 -> Int8 -> Int16 -> Chip16
+opNoti machine rx hhll =
+  case not hhll machine.cpu of
+    (res, cpu) -> { machine
+                  | cpu = set_rx cpu rx res }
+
+opNot1 : Chip16 -> Int8 -> Chip16
+opNot1 machine rx =
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case not vx machine.cpu of
+        (res, cpu) -> { machine
+                      | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opNot2 : Chip16 -> Int8 -> Int8 -> Chip16
+opNot2 machine rx ry =
+  case get_rx machine.cpu ry of
+    Just vy ->
+      case not vy machine.cpu of
+        (res, cpu) -> { machine
+                      | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opNegi : Chip16 -> Int8 -> Int16 -> Chip16
+opNegi machine rx hhll = 
+  case neg hhll machine.cpu of
+    (res, cpu) -> { machine
+                  | cpu = set_rx cpu rx res }
+
+opNeg1 : Chip16 -> Int8 -> Chip16
+opNeg1 machine rx = 
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case neg vx machine.cpu of
+        (res, cpu) -> { machine
+                      | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opNeg2 : Chip16 -> Int8 -> Int8 -> Chip16
+opNeg2 machine rx ry = 
+  case get_rx machine.cpu ry of
+    Just vy ->
+      case neg vy machine.cpu of
+        (res, cpu) -> { machine
+                      | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
 
 
 opCls machine = machine
@@ -794,10 +859,10 @@ dispatch machine a b c d =
       0xD0 -> opPalAddr machine hhll
       0xD1 -> opPalReg machine rx
       -- Ex Not/Neg
-      0xE0 -> opNoti machine rx hhll
+      0xE0 -> opNoti machine rx (toi16 (U16 hhll))
       0xE1 -> opNot1 machine rx
       0xE2 -> opNot2 machine rx ry
-      0xE3 -> opNegi machine rx hhll
+      0xE3 -> opNegi machine rx (toi16 (U16 hhll))
       0xE4 -> opNeg1 machine rx
       0xE5 -> opNeg2 machine rx ry
       _ -> Debug.todo ("instruction `" ++  Debug.toString (to (I8 a)) ++ " ` does not exist!")
