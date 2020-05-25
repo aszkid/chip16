@@ -1,4 +1,4 @@
-module Chip16 exposing (Chip16, init, dispatch)
+module Chip16 exposing (Chip16, init, dispatch, opPush)
 
 import Numbers exposing (..)
 import Slice exposing (Slice)
@@ -534,9 +534,58 @@ opSar2 machine rx ry =
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
     _ -> Debug.todo "invalid registers"
 
-opPush machine rx = machine
-opPop machine rx = machine
-opPushAll machine = machine
+opPush : Chip16 -> Int8 -> Chip16
+opPush machine rx =
+  let
+    new_sp = case Numbers.add (U16 (u16from 2)) (U16 machine.cpu.sp) of
+      (U16 res, _) -> res
+      _ -> Debug.todo "add failed"
+  in
+    case get_rx machine.cpu rx of
+      Just vx -> { machine
+                | memory = Memory.set machine.cpu.sp vx machine.memory
+                , cpu = set_sp machine.cpu new_sp }
+      _ -> Debug.todo "invalid register"
+
+opPop : Chip16 -> Int8 -> Chip16
+opPop machine rx = 
+  let
+    new_sp = case Numbers.sub (I16 (toi16 (U16 machine.cpu.sp))) (I16 (i16from 2)) of
+      (I16 res, _) -> tou16 (I16 res)
+      _ -> Debug.todo "add failed"
+  in
+    case get_rx machine.cpu rx of
+      Just vx -> { machine
+                | memory = Memory.set machine.cpu.sp vx machine.memory
+                , cpu = set_sp machine.cpu new_sp }
+      _ -> Debug.todo "invalid register"
+
+opPushAll : Chip16 -> Chip16
+opPushAll machine = 
+  let
+    new_sp = case Numbers.add (U16 (u16from 32)) (U16 machine.cpu.sp) of
+      (U16 res, _) -> res
+      _ -> Debug.todo "add failed"
+    adder x = case Numbers.add (U16 machine.cpu.sp) (U16 (u16from x)) of
+      (U16 res, _) -> res
+      _ -> Debug.todo "adder failed"
+    
+    setter : Int -> Memory -> Memory
+    setter rx mem =
+      case get_rx machine.cpu (i8from rx) of
+        Just vx -> Memory.set (adder rx) vx mem
+        _ -> Debug.todo "reg get failed"
+    theMemory =
+      List.foldl
+        setter
+        machine.memory
+        (List.range 0 15)
+  in
+    { machine
+    | memory = theMemory
+    , cpu = set_sp machine.cpu new_sp }
+
+
 opPopAll machine = machine
 opPushf machine = machine
 opPopf machine = machine
@@ -590,7 +639,7 @@ dispatch machine a b c d =
     ad = b
     x = nibbleLO b
   in
-    case to (I8 a) of
+    case tobits (I8 a) of
       -- 0x Misc/Video/Audio
       0x00 -> machine
       0x01 -> opCls machine
@@ -696,7 +745,7 @@ dispatch machine a b c d =
       0xE3 -> opNegi machine rx hhll
       0xE4 -> opNeg1 machine rx
       0xE5 -> opNeg2 machine rx ry
-      _ -> machine
+      _ -> Debug.todo ("instruction `" ++  Debug.toString (to (I8 a)) ++ " ` does not exist!")
 
 {--
 

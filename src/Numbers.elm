@@ -3,7 +3,7 @@ module Numbers exposing
   , add, sub, neg, mul, div, mod, rem, and, or, xor, shl, shr
   , buildLE, nibbleLO, nibbleHI
   , i8from, i16from, u16from
-  , to, tou16, toi16
+  , to, tou16, toi16, tobits
   , isNeg, isPos, isZero)
 
 import Bitwise exposing (and, or, shiftLeftBy)
@@ -45,6 +45,14 @@ tou16 x =
     I16 (Int16 v) -> (UInt16 v)
     U8 (UInt8 v) -> (UInt16 v)
     U16 v -> v
+
+tobits : ChipInt -> Int
+tobits n =
+  case n of
+    I8 (Int8 v) -> v
+    I16 (Int16 v) -> v
+    U8 (UInt8 v) -> v
+    U16 (UInt16 v) -> v
 
 toi16 : ChipInt -> Int16
 toi16 x =
