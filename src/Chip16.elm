@@ -470,10 +470,69 @@ opRem3 machine rx ry rz =
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
     _ -> Debug.todo "invalid register"
 
-opShl machine rx n = machine
-opShr machine rx n = machine
-opSar machine rx n = machine
-opSar2 machine rx ry = machine
+type Dir = ShiftLeft | ShiftRight
+shift : Int16 -> Int16 -> Dir -> Numbers.Shift -> Cpu -> (Int16, Cpu)
+shift num by dir t cpu =
+  let
+    res = case (case dir of
+      ShiftLeft -> Numbers.shl (I16 num) (I16 by)
+      ShiftRight -> Numbers.shr (I16 num) (I16 by) t) of
+        (I16 r) -> r
+        _ -> Debug.todo "shift failed!"
+    
+    zero = isZero (I16 res)
+    negative = isNeg (I16 res)
+    flags = [(FZero, zero), (FNegative, negative)]
+  in
+    (res, { cpu | flags = set_flags flags cpu.flags })
+
+opShli : Chip16 -> Int8 -> Int16 -> Chip16
+opShli machine rx n =
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case shift vx n ShiftLeft ShiftLogical machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opShri : Chip16 -> Int8 -> Int16 -> Chip16
+opShri machine rx n = 
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case shift vx n ShiftRight ShiftLogical machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opSari : Chip16 -> Int8 -> Int16 -> Chip16
+opSari machine rx n = 
+  case get_rx machine.cpu rx of
+    Just vx ->
+      case shift vx n ShiftRight ShiftArithmetic machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid register"
+
+opShl2 : Chip16 -> Int8 -> Int8 -> Chip16
+opShl2 machine rx ry = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case shift vx vy ShiftLeft ShiftLogical machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid registers"
+
+opShr2 : Chip16 -> Int8 -> Int8 -> Chip16
+opShr2 machine rx ry = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case shift vx vy ShiftRight ShiftLogical machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid registers"
+
+opSar2 : Chip16 -> Int8 -> Int8 -> Chip16
+opSar2 machine rx ry = 
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      case shift vx vy ShiftRight ShiftArithmetic machine.cpu of
+        (res, cpu) -> { machine | cpu = set_rx cpu rx res }
+    _ -> Debug.todo "invalid registers"
 
 opPush machine rx = machine
 opPop machine rx = machine
@@ -523,7 +582,7 @@ dispatch machine a b c d =
     rx = nibbleLO b
     ry = nibbleHI b
     rz = nibbleLO c
-    n = nibbleLO c
+    n = toi16 (I8 (nibbleLO c))
     hhll = buildLE c d
     hh = d
     ll = c
@@ -614,11 +673,11 @@ dispatch machine a b c d =
       0xA7 -> opRem2 machine rx ry
       0xA8 -> opRem3 machine rx ry rz
       -- Bx Logical/Arithmetic Shifts
-      0xB0 -> opShl machine rx n
-      0xB1 -> opShr machine rx n
-      0xB2 -> opSar machine rx n
-      0xB3 -> opShl machine rx ry
-      0xB4 -> opShr machine rx ry
+      0xB0 -> opShli machine rx n
+      0xB1 -> opShri machine rx n
+      0xB2 -> opSari machine rx n
+      0xB3 -> opShl2 machine rx ry
+      0xB4 -> opShr2 machine rx ry
       0xB5 -> opSar2 machine rx ry
       -- Cx Push/Pop
       0xC0 -> opPush machine rx

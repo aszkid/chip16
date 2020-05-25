@@ -1,6 +1,6 @@
 module Numbers exposing 
-  ( Int8, Int16, UInt8, UInt16, ChipInt (..)
-  , add, sub, neg, mul, div, mod, rem, and, or, xor
+  ( Int8, Int16, UInt8, UInt16, ChipInt (..), Shift (..)
+  , add, sub, neg, mul, div, mod, rem, and, or, xor, shl, shr
   , buildLE, nibbleLO, nibbleHI
   , i8from, i16from, u16from
   , to, tou16, toi16
@@ -49,7 +49,7 @@ tou16 x =
 toi16 : ChipInt -> Int16
 toi16 x =
   case x of
-    I8 (Int8 v) -> Debug.todo "widening i8 is unimplemented"
+    I8 (Int8 v) -> Int16 (Bitwise.and 0xFFFF (Bitwise.shiftRightBy 24 (Bitwise.shiftLeftBy 24 v)))
     I16 v -> v
     U8 (UInt8 v) -> (Int16 v)
     U16 (UInt16 v) -> (Int16 v)
@@ -170,6 +170,35 @@ xor x y =
   case (x, y) of
     (I16 (Int16 a), I16 (Int16 b)) -> I16 (Int16 (Bitwise.xor a b))
     _ -> Debug.todo "xor unimpl"
+
+type Shift = ShiftArithmetic | ShiftLogical
+
+shl : ChipInt -> ChipInt -> ChipInt
+shl x y =
+  let
+    shl_ mby shby val = modBy mby (Bitwise.shiftLeftBy shby val)
+  in
+    case (x, y) of
+      (I16 (Int16 val), I16 (Int16 by)) -> I16 (Int16 (shl_ 65536 by val))
+      _ -> Debug.todo "shl unimpl"
+
+shr_ : Shift -> Int -> Int -> Int -> Int
+shr_ t width shby val =
+  let
+    mby = Bitwise.shiftLeftBy width 1
+    fill = 32 - width
+  in
+    modBy mby
+      ( case t of
+        ShiftArithmetic -> Bitwise.shiftRightBy (shby + fill) (Bitwise.shiftLeftBy fill val)
+        ShiftLogical -> Bitwise.shiftRightZfBy shby val )
+
+shr : ChipInt -> ChipInt -> Shift -> ChipInt
+shr x y t =
+  case (x, y) of
+    (I8 (Int8 val), I8 (Int8 by)) -> I8 (Int8 (shr_ t 8 by val))
+    (I16 (Int16 val), I16 (Int16 by)) -> I16 (Int16 (shr_ t 16 by val))
+    _ -> Debug.todo "shr unimpl"
 
 isNeg : ChipInt -> Bool
 isNeg n = to n < 0
