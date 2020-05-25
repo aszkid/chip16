@@ -8,6 +8,7 @@ import File exposing (File)
 import File.Select as Select
 import Task
 import Bytes exposing (Bytes)
+import Time
 
 main : Program Flags Model Msg
 main = 
@@ -21,12 +22,14 @@ main =
 type alias Model = 
   { machine : Chip16
   , file : Maybe Bytes
+  , time : Time.Posix
   }
 
 type Msg
   = FileRequested
   | FileLoaded File
   | FileContentLoaded Bytes
+  | Tick Time.Posix
 
 type alias Flags = ()
 
@@ -34,6 +37,7 @@ initModel : Model
 initModel =
   { machine = Chip16.init
   , file = Nothing
+  , time = Time.millisToPosix 0
   }
 
 init : Flags -> (Model, Cmd Msg)
@@ -50,6 +54,8 @@ view model =
     , button [ class "btn btn-success" ] [ text "Step" ]
     , button [ class "btn btn-warning" ] [ text "Reset" ]
     , br [] []
+    , text (Debug.toString (Time.posixToMillis model.time))
+    , br [] []
     , text ("PC: "
             ++ Debug.toString model.machine.cpu.pc
             ++ ", SP: "
@@ -63,7 +69,8 @@ update msg model =
     FileRequested -> (model, Select.file ["application/octet-stream"] FileLoaded)
     FileLoaded f -> (model, Task.perform FileContentLoaded (File.toBytes f))
     FileContentLoaded b -> ({ model | file = Just b }, Cmd.none)
+    Tick t -> ({ model | time = t }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Time.every 1000 Tick
