@@ -550,8 +550,8 @@ opPush machine rx =
 opPop : Chip16 -> Int8 -> Chip16
 opPop machine rx = 
   let
-    new_sp = case Numbers.sub (I16 (toi16 (U16 machine.cpu.sp))) (I16 (i16from 2)) of
-      (I16 res, _) -> tou16 (I16 res)
+    new_sp = case Numbers.sub (I16 (toi16 (U16 machine.cpu.sp))) (I16 (i16from 32)) of
+      (I16 res, _) -> (tou16 (I16 res))
       _ -> Debug.todo "add failed"
   in
     case get_rx machine.cpu rx of
@@ -566,7 +566,7 @@ opPushAll machine =
     new_sp = case Numbers.add (U16 (u16from 32)) (U16 machine.cpu.sp) of
       (U16 res, _) -> res
       _ -> Debug.todo "add failed"
-    adder x = case Numbers.add (U16 machine.cpu.sp) (U16 (u16from x)) of
+    adder x = case Numbers.add (U16 machine.cpu.sp) (U16 (u16from (x * 2))) of
       (U16 res, _) -> res
       _ -> Debug.todo "adder failed"
     
@@ -586,7 +586,31 @@ opPushAll machine =
     , cpu = set_sp machine.cpu new_sp }
 
 
-opPopAll machine = machine
+opPopAll : Chip16 -> Chip16
+opPopAll machine = 
+  let
+    new_sp = case Numbers.sub (I16 (toi16 (U16 machine.cpu.sp))) (I16 (i16from 32)) of
+      (I16 res, _) -> (tou16 (I16 res))
+      _ -> Debug.todo "add failed"
+    cpu = set_sp machine.cpu new_sp
+    adder x = case Numbers.add (U16 cpu.sp) (U16 (u16from (x * 2))) of
+      (U16 res, _) -> res
+      _ -> Debug.todo "adder failed"
+    
+    setter : Int -> Cpu -> Cpu
+    setter rx cpu_ =
+      case Memory.get (adder rx) machine.memory of
+        Just vx -> set_rx cpu_ (i8from rx) vx
+        _ -> Debug.todo "mem get failed"
+    theCpu =
+      List.foldl
+        setter
+        cpu
+        (List.range 0 15)
+  in
+    { machine
+    | cpu = theCpu }
+
 opPushf machine = machine
 opPopf machine = machine
 

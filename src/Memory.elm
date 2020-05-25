@@ -9,7 +9,7 @@ init : Memory
 init = Memory (Slice.new 16 (i16from 0))
 
 get : UInt16 -> Memory -> Maybe Int16
-get addr (Memory slice) = Slice.get (to (U16 addr)) slice
+get addr (Memory slice) = Slice.get (to (U16 addr) // 2) slice
 
 set : UInt16 -> Int16 -> Memory -> Memory
-set addr val (Memory slice) = Memory (Slice.set (to (U16 addr)) val slice)
+set addr val (Memory slice) = Memory (Slice.set (to (U16 addr) // 2) val slice)
