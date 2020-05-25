@@ -1,14 +1,22 @@
-module Chip16 exposing (Chip16, init, dispatch, opPush)
+module Chip16 exposing (Chip16, init, dispatch, binFlags, initFlags)
 
 import Numbers exposing (..)
 import Slice exposing (Slice)
 import Memory exposing (Memory)
+import Bitwise exposing (or, shiftLeftBy)
 
 type alias Flags =
   { carry : Bool
   , zero : Bool
   , overflow : Bool
   , negative : Bool }
+
+binFlags : Flags -> Int16
+binFlags fs = 
+  let
+    set bit yes to = Bitwise.or to (if yes then Bitwise.shiftLeftBy bit 1 else 0)
+  in
+    i16from (set 1 fs.carry (set 2 fs.zero (set 6 fs.overflow (set 7 fs.negative 0))))
 
 type alias Cpu =
   { pc : UInt16,
@@ -550,15 +558,16 @@ opPush machine rx =
 opPop : Chip16 -> Int8 -> Chip16
 opPop machine rx = 
   let
-    new_sp = case Numbers.sub (I16 (toi16 (U16 machine.cpu.sp))) (I16 (i16from 32)) of
+    new_sp = case Numbers.sub (I16 (toi16 (U16 machine.cpu.sp))) (I16 (i16from 2)) of
       (I16 res, _) -> (tou16 (I16 res))
       _ -> Debug.todo "add failed"
+    cpu = set_sp machine.cpu new_sp
+    val = case Memory.get new_sp machine.memory of
+      Just v -> v
+      _ -> Debug.todo "invalid address at sp"
   in
-    case get_rx machine.cpu rx of
-      Just vx -> { machine
-                | memory = Memory.set machine.cpu.sp vx machine.memory
-                , cpu = set_sp machine.cpu new_sp }
-      _ -> Debug.todo "invalid register"
+    { machine
+    | cpu = set_rx cpu rx val }
 
 opPushAll : Chip16 -> Chip16
 opPushAll machine = 
@@ -611,8 +620,30 @@ opPopAll machine =
     { machine
     | cpu = theCpu }
 
-opPushf machine = machine
-opPopf machine = machine
+opPushf : Chip16 -> Chip16
+opPushf machine =
+  let
+    new_sp = case Numbers.add (U16 (u16from 2)) (U16 machine.cpu.sp) of
+      (U16 res, _) -> res
+      _ -> Debug.todo "add failed"
+    flags = binFlags machine.cpu.flags
+  in
+    { machine 
+    | memory = Memory.set machine.cpu.sp flags machine.memory
+    , cpu = set_sp machine.cpu new_sp }
+
+opPopf : Chip16 -> Chip16
+opPopf machine = 
+  let
+    new_sp = case Numbers.sub (I16 (toi16 (U16 machine.cpu.sp))) (I16 (i16from 2)) of
+      (I16 res, _) -> (tou16 (I16 res))
+      _ -> Debug.todo "add failed"
+    cpu = set_sp machine.cpu new_sp
+    flags = binFlags machine.cpu.flags
+  in
+    { machine
+    | cpu = cpu
+    , memory = Memory.set cpu.sp flags machine.memory }
 
 opPalAddr machine hhll = machine
 opPalReg machine rx = machine
