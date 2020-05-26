@@ -4,7 +4,7 @@ module Numbers exposing
   , buildLE, nibbleLO, nibbleHI
   , i8from, i16from, u16from
   , to, tou16, toi16, tobits
-  , isNeg, isPos, isZero)
+  , isNeg, isPos, isZero, eq)
 
 import Bitwise exposing (and, or, shiftLeftBy)
 
@@ -228,6 +228,8 @@ isPos n = to n > 0
 isZero : ChipInt -> Bool
 isZero n = to n == 0
 
+eq : ChipInt -> ChipInt -> Bool
+eq x y = to x == to y
 
 buildLE : Int8 -> Int8 -> UInt16
 buildLE (Int8 low) (Int8 hi) = UInt16 (Bitwise.or (shiftLeftBy 8 hi) low)

@@ -75,6 +75,10 @@ set_sp : Cpu -> UInt16 -> Cpu
 set_sp cpu val
   = { cpu | sp = val }
 
+set_pc : Cpu -> UInt16 -> Cpu
+set_pc cpu val
+  = { cpu | pc = val }
+
 type FlagEnum = FCarry | FZero | FOverflow | FNegative
 set_flag : FlagEnum -> Bool -> Flags -> Flags
 set_flag flag val flags =
@@ -773,15 +777,84 @@ opSnd machine freq hhll = machine
 opSnp machine rx hhll = machine
 opSng machine ad vtsr = machine
 
-opJmpi machine hhll = machine
-opJmc machine hhll = machine
-opJx machine x hhll = machine
-opJme machine rx ry hhll = machine
-opCalli machine hhll = machine
-opRet machine = machine
-opJmp machine rx = machine
-opCx machine x hhll = machine
-opCall machine rx = machine
+opJmpi : Chip16 -> UInt16 -> Chip16
+opJmpi machine hhll
+  = { machine | cpu = set_sp machine.cpu hhll }
+
+opJmc : Chip16 -> UInt16 -> Chip16
+opJmc machine hhll =
+  if machine.cpu.flags.carry then
+    { machine | cpu = set_sp machine.cpu hhll }
+  else
+    machine
+opJx : Chip16 -> Int8 -> UInt16 -> Chip16
+opJx machine x hhll =
+  if isZero (I8 x) then
+    machine
+  else
+    { machine | cpu = set_sp machine.cpu hhll }
+
+opJme : Chip16 -> Int8 -> Int8 -> UInt16 -> Chip16
+opJme machine rx ry hhll =
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
+      if Numbers.eq (I16 vx) (I16 vy) then
+        { machine | cpu = set_sp machine.cpu hhll }
+      else
+        machine
+    _ -> Debug.todo "invalid registers"
+
+opCalli : Chip16 -> UInt16 -> Chip16
+opCalli machine hhll =
+  let
+    mem = Memory.set machine.cpu.sp (toi16 (U16 machine.cpu.pc)) machine.memory
+    newsp = case Numbers.add (U16 (u16from 2)) (U16 machine.cpu.sp) of
+      (U16 r, _) -> r
+      _ -> Debug.todo "newsp failed"
+  in
+    { machine
+    | memory = mem
+    , cpu = set_sp (set_pc machine.cpu hhll) newsp }
+
+opRet : Chip16 -> Chip16
+opRet machine =
+  let
+    newsp = case Numbers.sub (I16 (toi16 (U16 machine.cpu.sp))) (I16 (i16from 2)) of
+      (I16 r, _) -> tou16 (I16 r)
+      _ -> Debug.todo "newsp failed"
+    spval = case Memory.get newsp machine.memory of
+      Just val -> tou16 (I16 val)
+      _ -> Debug.todo "invalid address in SP"
+  in
+    { machine
+    | cpu = set_sp (set_pc machine.cpu spval) newsp }
+
+opJmp : Chip16 -> Int8 -> Chip16
+opJmp machine rx =
+  case get_rx machine.cpu rx of
+    Just vx -> { machine | cpu = set_pc machine.cpu (tou16 (I16 vx)) }
+    _ -> Debug.todo "invalid register"
+
+opCx : Chip16 -> Int8 -> UInt16 -> Chip16
+opCx machine x hhll =
+  if isZero (I8 x) then
+    machine
+  else
+    opCalli machine hhll
+
+opCall : Chip16 -> Int8 -> Chip16
+opCall machine rx = 
+  let
+    mem = Memory.set machine.cpu.sp (toi16 (U16 machine.cpu.pc)) machine.memory
+    newsp = case Numbers.add (U16 (u16from 2)) (U16 machine.cpu.sp) of
+      (U16 r, _) -> r
+      _ -> Debug.todo "newsp failed"
+  in
+    case get_rx machine.cpu rx of
+      Just vx -> { machine
+                 | memory = mem
+                 , cpu = set_sp (set_pc machine.cpu (tou16 (I16 vx))) newsp }
+      _ -> Debug.todo "invalid register"
 
 -- attempt to dispatch an instruction from 4 bytes
 dispatch : Chip16 -> Int8 -> Int8 -> Int8 -> Int8 -> Chip16
