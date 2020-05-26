@@ -1,5 +1,6 @@
 module App exposing (main)
 import Chip16 exposing (..)
+import Numbers exposing (Int8)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -64,12 +65,24 @@ romDecoder : Header -> Decoder Bytes
 romDecoder hdr =
   Decode.withOffset 16 (Decode.bytes hdr.romsz)
 
+type Instruction = Instruction Int8 Int8 Int8 Int8
+instructionDecoder : Int -> Bytes -> Decoder Instruction
+instructionDecoder pc rom =
+  Decode.withOffset pc (
+      Decode.unsignedInt8
+      |> Decode.unsignedInt8
+      |> Decode.unsignedInt8
+      |> Decode.unsignedInt8
+  )
+
+
 type Msg
   = FileRequested
   | FileLoaded File
   | FileContentLoaded Bytes
   | FrameBegin Time.Posix
   | FrameEnd Time.Posix
+  | Step
 
 type alias Flags = ()
 
@@ -94,7 +107,7 @@ view model =
     , br [] []
     , button [ class "btn btn-primary", onClick FileRequested ] [ text "Load ROM" ]
     , br [] []
-    , button [ class "btn btn-success" ] [ text "Step" ]
+    , button [ class "btn btn-success" onClick Step ] [ text "Step" ]
     , button [ class "btn btn-warning" ] [ text "Reset" ]
     , br [] []
     , text ("frametime: " ++ Debug.toString model.delta)
@@ -129,6 +142,10 @@ update msg model =
       )
     FrameBegin t -> ({ model | time = t }, Task.perform FrameEnd Time.now)
     FrameEnd t -> ({ model | delta = Time.posixToMillis t - Time.posixToMillis model.time}, Cmd.none)
+    Step -> case model.rom of
+      Nothing -> (model, Cmd.none)
+      Just rom -> case (Decode.decode (instructionDecoder model.machine.cpu.pc) rom) of
+        Just (Instruction a b c d) -> ({ model | machine = dispatch model.achine a b c d }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model = Sub.none
