@@ -1,6 +1,6 @@
 module App exposing (main)
 import Chip16 exposing (..)
-import Numbers exposing (Int8)
+import Numbers exposing (Int8, ChipInt(..), to, i8from)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -30,6 +30,7 @@ type alias Model =
   , delta : Int
   , hdr : Maybe Header
   , rom : Maybe Bytes
+  , running : Bool
   }
 
 type alias Header =
@@ -65,24 +66,28 @@ romDecoder : Header -> Decoder Bytes
 romDecoder hdr =
   Decode.withOffset 16 (Decode.bytes hdr.romsz)
 
-type Instruction = Instruction Int8 Int8 Int8 Int8
-instructionDecoder : Int -> Bytes -> Decoder Instruction
-instructionDecoder pc rom =
-  Decode.withOffset pc (
-      Decode.unsignedInt8
-      |> Decode.unsignedInt8
-      |> Decode.unsignedInt8
-      |> Decode.unsignedInt8
-  )
-
+type Instruction = Instruction Int Int Int Int
+instructionDecoder : Int -> Decoder Instruction
+instructionDecoder pc =
+  Decode.loop (0, Instruction 0 0 0 0) (\(step, Instruction a b c d) -> 
+    if step >= 4 then
+      Decode.succeed (Decode.Done (Instruction a b c d))
+    else
+      Decode.map
+        (\byte -> case step of
+          0 -> Decode.Loop (1, Instruction byte 0 0 0)
+          1 -> Decode.Loop (2, Instruction a byte 0 0)
+          2 -> Decode.Loop (3, Instruction a b byte 0)
+          3 -> Decode.Loop (4, Instruction a b c byte)
+          _ -> Debug.todo "failed to decode isntruction")
+        Decode.unsignedInt8)
 
 type Msg
   = FileRequested
   | FileLoaded File
   | FileContentLoaded Bytes
-  | FrameBegin Time.Posix
-  | FrameEnd Time.Posix
-  | Step
+  | Step Int Bool
+  | Running Bool
 
 type alias Flags = ()
 
@@ -94,6 +99,7 @@ initModel =
   , delta = 0
   , hdr = Nothing
   , rom = Nothing
+  , running = False
   }
 
 init : Flags -> (Model, Cmd Msg)
@@ -106,11 +112,13 @@ view model =
     [ text ("File = " ++ Debug.toString model.file)
     , br [] []
     , button [ class "btn btn-primary", onClick FileRequested ] [ text "Load ROM" ]
-    , br [] []
-    , button [ class "btn btn-success" onClick Step ] [ text "Step" ]
     , button [ class "btn btn-warning" ] [ text "Reset" ]
     , br [] []
-    , text ("frametime: " ++ Debug.toString model.delta)
+    , button [ class "btn btn-success", onClick (Step 1 True) ] [ text "Step" ]
+    , button [ class "btn btn-secondary", onClick (Running True) ] [ text "Start" ]
+    , button [ class "btn btn-danger", onClick (Running False) ] [ text "Pause" ]
+    , br [] []
+    , text ("Running: " ++ Debug.toString model.running)
     , br [] []
     , text ("PC: "
             ++ Debug.toString model.machine.cpu.pc
@@ -122,6 +130,26 @@ view model =
     , text ("Header: " ++ Debug.toString model.hdr )
     , br [] []
     , text ("Rom: " ++ Debug.toString model.rom ) ]
+
+steps : Int -> Model -> Model
+steps n model =
+  let
+    take_step : Chip16 -> Bytes -> Chip16
+    take_step machine rom =
+      case Decode.decode (instructionDecoder (to (U16 machine.cpu.pc))) rom of
+        Just (Instruction a b c d) -> dispatch machine False (i8from a) (i8from b) (i8from c) (i8from d)
+        _ -> Debug.todo "failed to decode instruction!"
+  in
+    case model.rom of
+      Nothing -> model
+      Just rom ->
+        { model
+        | machine =
+          List.foldl
+            (\_ machine -> take_step machine rom)
+            model.machine
+            (List.range 1 n)
+        }
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -140,12 +168,9 @@ update msg model =
             Nothing -> Nothing }
         , Cmd.none
       )
-    FrameBegin t -> ({ model | time = t }, Task.perform FrameEnd Time.now)
-    FrameEnd t -> ({ model | delta = Time.posixToMillis t - Time.posixToMillis model.time}, Cmd.none)
-    Step -> case model.rom of
-      Nothing -> (model, Cmd.none)
-      Just rom -> case (Decode.decode (instructionDecoder model.machine.cpu.pc) rom) of
-        Just (Instruction a b c d) -> ({ model | machine = dispatch model.achine a b c d }, Cmd.none)
+    Step n force -> if model.running || force then (steps n model, Cmd.none) else (model, Cmd.none)
+    Running b -> ({ model | running = b }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
-subscriptions model = Sub.none
+subscriptions model =
+  Time.every 1000 (\t -> Step 1000 False)
