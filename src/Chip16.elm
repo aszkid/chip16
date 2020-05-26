@@ -4,6 +4,7 @@ import Numbers exposing (..)
 import Slice exposing (Slice)
 import Memory exposing (Memory)
 import Bitwise exposing (or, shiftLeftBy)
+import Random
 
 type alias Flags =
   { carry : Bool
@@ -22,15 +23,25 @@ type alias Cpu =
   { pc : UInt16,
     sp : UInt16,
     regs : Slice Int16,
-    flags : Flags
+    flags : Flags,
+    vblank : Bool,
+    seed : Random.Seed
   }
 
 type Palette = Palette (Slice Int)
+type alias Graphics =
+  { palette : Palette
+  , bg : Int
+  , spritew : Int
+  , spriteh : Int
+  , hflip : Bool
+  , vflip : Bool }
+    
 
 type alias Chip16 = 
   { cpu : Cpu,
     memory : Memory,
-    palette : Palette }
+    graphics : Graphics }
 
 initFlags : Flags
 initFlags
@@ -44,7 +55,9 @@ initCpu =
   { pc = u16from 0
   , sp = u16from 0
   , regs = Slice.new 16 (i16from 0)
-  , flags = initFlags}
+  , flags = initFlags
+  , vblank = False
+  , seed = Random.initialSeed 42 }
 
 initPalette : Palette
 initPalette = Palette
@@ -57,6 +70,21 @@ initPalette = Palette
     , 0xABD54A, 0x252E38
     , 0x00467F, 0x68ABCC
     , 0xBCDEE4, 0xFFFFFF ])
+
+initGraphics : Graphics
+initGraphics =
+  { palette = initPalette
+  , bg = 0
+  , spritew = 0
+  , spriteh = 0
+  , hflip = False
+  , vflip = False }
+
+init : Chip16
+init = 
+  { cpu = initCpu
+  , memory = Memory.init
+  , graphics = initGraphics }
 
 set_rx : Cpu -> Int8 -> Int16 -> Cpu
 set_rx cpu rx val
@@ -79,6 +107,19 @@ set_pc : Cpu -> UInt16 -> Cpu
 set_pc cpu val
   = { cpu | pc = val }
 
+dec_pc : Int -> Cpu -> Cpu
+dec_pc by cpu =
+  let
+    new_pc = case Numbers.sub (I16 (toi16 (U16 cpu.pc))) (I16 (i16from by)) of
+      (I16 r, _) -> tou16 (I16 r)
+      _ -> Debug.todo "dec_pc failed"
+  in
+    { cpu | pc = new_pc }
+
+set_seed : Random.Seed -> Cpu -> Cpu
+set_seed seed cpu =
+  { cpu | seed = seed }
+
 type FlagEnum = FCarry | FZero | FOverflow | FNegative
 set_flag : FlagEnum -> Bool -> Flags -> Flags
 set_flag flag val flags =
@@ -91,6 +132,21 @@ set_flag flag val flags =
 set_flags : List (FlagEnum, Bool) -> Flags -> Flags
 set_flags list flags =
   List.foldl (\(f, v) fs -> set_flag f v fs) flags list
+
+set_palette : Palette -> Graphics -> Graphics
+set_palette p g =
+  { g | palette = p }
+
+set_bg : Int -> Graphics -> Graphics
+set_bg idx g =
+  { g | bg = idx }
+
+clear_fg : Graphics -> Graphics
+clear_fg g = g
+
+set_spritewh : Int -> Int -> Graphics -> Graphics
+set_spritewh w h g =
+  { g | spritew = w, spriteh = h }
 
 {-- given two numbers and a CPU, add them
     and return the result and a new CPU with updated flags --}
@@ -120,12 +176,6 @@ sub x y cpu =
     flags = [(FCarry, borrow), (FZero, zero), (FOverflow, overflow), (FNegative, negative)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
-
-init : Chip16
-init = 
-  { cpu = initCpu
-  , memory = Memory.init
-  , palette = initPalette}
 
 opLoad_RegImm : Chip16 -> Int8 -> Int16 -> Chip16
 opLoad_RegImm machine rx val
@@ -669,10 +719,10 @@ loadPal : Chip16 -> UInt16 -> Chip16
 loadPal machine addr =
   let
     getPal : Chip16 -> Slice Int
-    getPal mch = case mch.palette of
+    getPal mch = case mch.graphics.palette of
       Palette sl -> sl
     set : Chip16 -> Int -> Int -> Chip16
-    set mch idx color = { mch | palette = Palette (Slice.set idx color (getPal mch)) }
+    set mch idx color = { mch | graphics = set_palette (Palette (Slice.set idx color (getPal mch))) mch.graphics }
     adder idx = (idx * 2) + to (U16 addr)
   in
     List.foldl
@@ -764,13 +814,41 @@ opNeg2 machine rx ry =
     _ -> Debug.todo "invalid register"
 
 
-opCls machine = machine
-opVblnk machine = machine
-opBgc machine n = machine
-opSpr machine ll hh = machine
-opDrwMem machine rx ry hhll = machine
-opDrwReg machine rx ry rz = machine
-opRnd machine rx hhll = machine
+opCls : Chip16 -> Chip16
+opCls machine =
+ { machine | graphics = set_bg 0 (clear_fg machine.graphics) }
+
+opVblnk : Chip16 -> Chip16
+opVblnk machine = 
+  if machine.cpu.vblank then
+    machine
+  else
+    { machine | cpu = dec_pc 4 machine.cpu }
+
+opBgc : Chip16 -> Int8 -> Chip16
+opBgc machine n =
+  { machine | graphics = set_bg (to (I8 n)) machine.graphics }
+
+opSpr : Chip16 -> Int8 -> Int8 -> Chip16
+opSpr machine w h =
+  { machine | graphics = set_spritewh (to (I8 w)) (to (I8 h)) machine.graphics }
+
+opDrwMem : Chip16 -> Int8 -> Int8 -> UInt16 -> Chip16
+opDrwMem machine rx ry hhll = Debug.todo "to impl!"
+
+opDrwReg : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
+opDrwReg machine rx ry rz = Debug.todo "to impl!"
+
+type RndMsg = NewRnd Int
+
+opRnd : Chip16 -> Int8 -> UInt16 -> Chip16
+opRnd machine rx hhll =
+  let
+    gen = Random.int 0 (to (U16 hhll))
+    (num, seed) = Random.step gen machine.cpu.seed
+  in
+    { machine | cpu = set_seed seed (set_rx machine.cpu rx (i16from num)) }
+
 opFlip machine hflip vflip = machine
 opSnd0 machine = machine
 opSnd machine freq hhll = machine
@@ -876,7 +954,7 @@ dispatch machine a b c d =
       0x00 -> machine
       0x01 -> opCls machine
       0x02 -> opVblnk machine
-      0x03 -> opBgc machine n
+      0x03 -> opBgc machine (i8from (to (I16 n)))
       0x04 -> opSpr machine ll hh
       0x05 -> opDrwMem machine rx ry hhll
       0x06 -> opDrwReg machine rx ry rz
