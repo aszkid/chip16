@@ -24,7 +24,6 @@ type alias Cpu =
     sp : UInt16,
     regs : Slice Int16,
     flags : Flags,
-    vblank : Bool,
     seed : Random.Seed
   }
 
@@ -56,7 +55,6 @@ initCpu =
   , sp = u16from 0
   , regs = Slice.new 16 (i16from 0)
   , flags = initFlags
-  , vblank = False
   , seed = Random.initialSeed 42 }
 
 initPalette : Palette
@@ -822,13 +820,6 @@ opCls : Chip16 -> Chip16
 opCls machine =
  { machine | graphics = set_bg 0 (clear_fg machine.graphics) }
 
-opVblnk : Chip16 -> Chip16
-opVblnk machine = 
-  if machine.cpu.vblank then
-    machine
-  else
-    { machine | cpu = dec_pc 4 machine.cpu }
-
 opBgc : Chip16 -> Int8 -> Chip16
 opBgc machine n =
   { machine | graphics = set_bg (to (I8 n)) machine.graphics }
@@ -940,8 +931,8 @@ opCall machine rx =
       _ -> Debug.todo "invalid register"
 
 -- attempt to dispatch an instruction from 4 bytes
-dispatch : Chip16 -> Int8 -> Int8 -> Int8 -> Int8 -> Chip16
-dispatch machine a b c d =
+dispatch : Chip16 -> Bool -> Int8 -> Int8 -> Int8 -> Int8 -> Chip16
+dispatch machine vblank a b c d =
   let
     rx = nibbleLO b
     ry = nibbleHI b
@@ -958,7 +949,11 @@ dispatch machine a b c d =
       -- 0x Misc/Video/Audio
       0x00 -> machine
       0x01 -> opCls machine
-      0x02 -> opVblnk machine
+      0x02 ->
+        if vblank then
+          machine
+        else
+          { machine | cpu = dec_pc 4 machine.cpu }
       0x03 -> opBgc machine (i8from (to (I16 n)))
       0x04 -> opSpr machine ll hh
       0x05 -> opDrwMem machine rx ry hhll
