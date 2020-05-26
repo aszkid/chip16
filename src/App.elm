@@ -13,6 +13,7 @@ import Bytes.Decode as Decode exposing (Decoder)
 import Bytes.Extra
 import Bytes.Decode.Extra as Decode
 import Time
+import Hex
 
 main : Program Flags Model Msg
 main = 
@@ -31,6 +32,7 @@ type alias Model =
   , hdr : Maybe Header
   , rom : Maybe Bytes
   , running : Bool
+  , instruction : String
   }
 
 type alias Header =
@@ -69,18 +71,19 @@ romDecoder hdr =
 type Instruction = Instruction Int Int Int Int
 instructionDecoder : Int -> Decoder Instruction
 instructionDecoder pc =
-  Decode.loop (0, Instruction 0 0 0 0) (\(step, Instruction a b c d) -> 
-    if step >= 4 then
-      Decode.succeed (Decode.Done (Instruction a b c d))
-    else
-      Decode.map
-        (\byte -> case step of
-          0 -> Decode.Loop (1, Instruction byte 0 0 0)
-          1 -> Decode.Loop (2, Instruction a byte 0 0)
-          2 -> Decode.Loop (3, Instruction a b byte 0)
-          3 -> Decode.Loop (4, Instruction a b c byte)
-          _ -> Debug.todo "failed to decode isntruction")
-        Decode.unsignedInt8)
+  Decode.withOffset pc (
+    Decode.loop (0, Instruction 0 0 0 0) (\(step, Instruction a b c d) -> 
+      if step >= 4 then
+        Decode.succeed (Decode.Done (Instruction a b c d))
+      else
+        Decode.map
+          (\byte -> case step of
+            0 -> Decode.Loop (1, Instruction byte 0 0 0)
+            1 -> Decode.Loop (2, Instruction a byte 0 0)
+            2 -> Decode.Loop (3, Instruction a b byte 0)
+            3 -> Decode.Loop (4, Instruction a b c byte)
+            _ -> Debug.todo "failed to decode isntruction")
+          Decode.unsignedInt8))
 
 type Msg
   = FileRequested
@@ -88,6 +91,7 @@ type Msg
   | FileContentLoaded Bytes
   | Step Int Bool
   | Running Bool
+  | Reset
 
 type alias Flags = ()
 
@@ -100,6 +104,7 @@ initModel =
   , hdr = Nothing
   , rom = Nothing
   , running = False
+  , instruction = ""
   }
 
 init : Flags -> (Model, Cmd Msg)
@@ -111,8 +116,10 @@ view model =
   div []
     [ text ("File = " ++ Debug.toString model.file)
     , br [] []
+    , text ("Instruction = " ++ Debug.toString model.instruction)
+    , br [] []
     , button [ class "btn btn-primary", onClick FileRequested ] [ text "Load ROM" ]
-    , button [ class "btn btn-warning" ] [ text "Reset" ]
+    , button [ class "btn btn-warning", onClick Reset ] [ text "Reset" ]
     , br [] []
     , button [ class "btn btn-success", onClick (Step 1 True) ] [ text "Step" ]
     , button [ class "btn btn-secondary", onClick (Running True) ] [ text "Start" ]
@@ -121,9 +128,9 @@ view model =
     , text ("Running: " ++ Debug.toString model.running)
     , br [] []
     , text ("PC: "
-            ++ Debug.toString model.machine.cpu.pc
+            ++ Hex.toString (to (U16 model.machine.cpu.pc))
             ++ ", SP: "
-            ++ Debug.toString model.machine.cpu.sp
+            ++ Hex.toString (to (U16 model.machine.cpu.sp))
             ++ ", Flags: "
             ++ Debug.toString model.machine.cpu.flags)
     , br [] []
@@ -134,22 +141,28 @@ view model =
 steps : Int -> Model -> Model
 steps n model =
   let
-    take_step : Chip16 -> Bytes -> Chip16
+    take_step : Chip16 -> Bytes -> (Chip16, Instruction)
     take_step machine rom =
       case Decode.decode (instructionDecoder (to (U16 machine.cpu.pc))) rom of
-        Just (Instruction a b c d) -> dispatch machine False (i8from a) (i8from b) (i8from c) (i8from d)
+        Just (Instruction a b c d) -> (dispatch machine False (i8from a) (i8from b) (i8from c) (i8from d), Instruction a b c d)
         _ -> Debug.todo "failed to decode instruction!"
+    take_steps : Bytes -> (Chip16, Instruction)
+    take_steps rom =
+      List.foldl
+        (\_ (machine, instr) -> take_step machine rom)
+        (model.machine, Instruction 0 0 0 0)
+        (List.range 1 n)
   in
     case model.rom of
       Nothing -> model
       Just rom ->
-        { model
-        | machine =
-          List.foldl
-            (\_ machine -> take_step machine rom)
-            model.machine
-            (List.range 1 n)
-        }
+        let
+          (out_machine, Instruction a b c d) = take_steps rom
+        in 
+          { model
+          | machine = out_machine
+          , instruction = Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d
+          }
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -170,6 +183,7 @@ update msg model =
       )
     Step n force -> if model.running || force then (steps n model, Cmd.none) else (model, Cmd.none)
     Running b -> ({ model | running = b }, Cmd.none)
+    Reset -> ({ model | machine = Chip16.init }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =

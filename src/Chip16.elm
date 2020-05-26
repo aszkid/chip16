@@ -114,6 +114,15 @@ dec_pc by cpu =
   in
     { cpu | pc = new_pc }
 
+inc_pc : Int -> Cpu -> Cpu
+inc_pc by cpu =
+  let
+    new_pc = case Numbers.add (U16 cpu.pc) (U16 (u16from by)) of
+      (U16 r, _) -> r
+      _ -> Debug.todo "dec_pc failed"
+  in
+    { cpu | pc = new_pc }
+
 set_seed : Random.Seed -> Cpu -> Cpu
 set_seed seed cpu =
   { cpu | seed = seed }
@@ -194,7 +203,13 @@ opLoad_RegMem machine rx addr =
     _ -> Debug.todo ("invalid memory address: " ++ (Debug.toString addr))
 
 opLoad_RegReg : Chip16 -> Int8 -> Int8 -> Chip16
-opLoad_RegReg machine rx ry = Debug.todo "foobar!"
+opLoad_RegReg machine rx ry =
+  case get_rx machine.cpu ry of
+    Just addr ->
+      case Memory.get (tou16 (I16 addr )) machine.memory of
+        Just val -> { machine | cpu = set_rx machine.cpu rx val }
+        _ -> Debug.todo "invalid memory address"
+    _ -> Debug.todo "invalid register"
 
 opMov : Chip16 -> Int8 -> Int8 -> Chip16
 opMov machine rx ry =
@@ -829,10 +844,10 @@ opSpr machine w h =
   { machine | graphics = set_spritewh (to (I8 w)) (to (I8 h)) machine.graphics }
 
 opDrwMem : Chip16 -> Int8 -> Int8 -> UInt16 -> Chip16
-opDrwMem machine rx ry hhll = Debug.todo "to impl!"
+opDrwMem machine rx ry hhll = machine
 
 opDrwReg : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
-opDrwReg machine rx ry rz = Debug.todo "to impl!"
+opDrwReg machine rx ry rz = machine
 
 opRnd : Chip16 -> Int8 -> UInt16 -> Chip16
 opRnd machine rx hhll =
@@ -932,8 +947,9 @@ opCall machine rx =
 
 -- attempt to dispatch an instruction from 4 bytes
 dispatch : Chip16 -> Bool -> Int8 -> Int8 -> Int8 -> Int8 -> Chip16
-dispatch machine vblank a b c d =
+dispatch machine_ vblank a b c d =
   let
+    machine = { machine_ | cpu = inc_pc 4 machine_.cpu }
     rx = nibbleLO b
     ry = nibbleHI b
     rz = nibbleLO c

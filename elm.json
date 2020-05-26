@@ -13,7 +13,8 @@
             "elm/file": "1.0.5",
             "elm/html": "1.0.0",
             "elm/random": "1.0.0",
-            "elm/time": "1.0.0"
+            "elm/time": "1.0.0",
+            "rtfeldman/elm-hex": "1.0.0"
         },
         "indirect": {
             "elm/json": "1.1.3",
