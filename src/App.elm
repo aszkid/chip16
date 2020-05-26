@@ -33,6 +33,7 @@ type alias Model =
   , rom : Maybe Bytes
   , running : Bool
   , instruction : String
+  , tick : Int
   }
 
 type alias Header =
@@ -105,6 +106,7 @@ initModel =
   , rom = Nothing
   , running = False
   , instruction = ""
+  , tick = 0
   }
 
 init : Flags -> (Model, Cmd Msg)
@@ -125,7 +127,7 @@ view model =
     , button [ class "btn btn-secondary", onClick (Running True) ] [ text "Start" ]
     , button [ class "btn btn-danger", onClick (Running False) ] [ text "Pause" ]
     , br [] []
-    , text ("Running: " ++ Debug.toString model.running)
+    , text ("Running: " ++ Debug.toString model.running ++ " | Tick: " ++ Debug.toString model.tick)
     , br [] []
     , text ("PC: "
             ++ Hex.toString (to (U16 model.machine.cpu.pc))
@@ -141,27 +143,29 @@ view model =
 steps : Int -> Model -> Model
 steps n model =
   let
-    take_step : Chip16 -> Bytes -> (Chip16, Instruction)
-    take_step machine rom =
-      case Decode.decode (instructionDecoder (to (U16 machine.cpu.pc))) rom of
-        Just (Instruction a b c d) -> (dispatch machine False (i8from a) (i8from b) (i8from c) (i8from d), Instruction a b c d)
+    take_step : Model -> Bytes -> (Model, Instruction)
+    take_step the_model rom =
+      case Decode.decode (instructionDecoder (to (U16 the_model.machine.cpu.pc))) rom of
+        Just (Instruction a b c d) -> (
+          { the_model
+          | machine = dispatch the_model.machine False (i8from a) (i8from b) (i8from c) (i8from d)
+          , tick = the_model.tick + 1 }, Instruction a b c d)
         _ -> Debug.todo "failed to decode instruction!"
-    take_steps : Bytes -> (Chip16, Instruction)
+    take_steps : Bytes -> (Model, Instruction)
     take_steps rom =
       List.foldl
-        (\_ (machine, instr) -> take_step machine rom)
-        (model.machine, Instruction 0 0 0 0)
+        (\_ (the_model, _) -> take_step the_model rom)
+        (model, Instruction 0 0 0 0)
         (List.range 1 n)
   in
     case model.rom of
       Nothing -> model
       Just rom ->
         let
-          (out_machine, Instruction a b c d) = take_steps rom
+          (out_model, Instruction a b c d) = take_steps rom
         in 
-          { model
-          | machine = out_machine
-          , instruction = Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d
+          { out_model
+          | instruction = Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d
           }
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -183,7 +187,7 @@ update msg model =
       )
     Step n force -> if model.running || force then (steps n model, Cmd.none) else (model, Cmd.none)
     Running b -> ({ model | running = b }, Cmd.none)
-    Reset -> ({ model | machine = Chip16.init }, Cmd.none)
+    Reset -> ({ model | machine = Chip16.init, tick = 0 }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
