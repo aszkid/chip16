@@ -148,6 +148,10 @@ set_spritewh : Int -> Int -> Graphics -> Graphics
 set_spritewh w h g =
   { g | spritew = w, spriteh = h }
 
+set_flip : Bool -> Bool -> Graphics -> Graphics
+set_flip hflip vflip g = 
+  { g | hflip = hflip, vflip = vflip }
+
 {-- given two numbers and a CPU, add them
     and return the result and a new CPU with updated flags --}
 add : Int16 -> Int16 -> Cpu -> (Int16, Cpu)
@@ -839,8 +843,6 @@ opDrwMem machine rx ry hhll = Debug.todo "to impl!"
 opDrwReg : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
 opDrwReg machine rx ry rz = Debug.todo "to impl!"
 
-type RndMsg = NewRnd Int
-
 opRnd : Chip16 -> Int8 -> UInt16 -> Chip16
 opRnd machine rx hhll =
   let
@@ -849,7 +851,10 @@ opRnd machine rx hhll =
   in
     { machine | cpu = set_seed seed (set_rx machine.cpu rx (i16from num)) }
 
-opFlip machine hflip vflip = machine
+opFlip : Chip16 -> Bool -> Bool -> Chip16
+opFlip machine hflip vflip =
+  { machine | graphics = set_flip hflip vflip machine.graphics }
+
 opSnd0 machine = machine
 opSnd machine freq hhll = machine
 opSnp machine rx hhll = machine
