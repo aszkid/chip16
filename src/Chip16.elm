@@ -1,4 +1,4 @@
-module Chip16 exposing (Chip16, init, dispatch, binFlags, initFlags)
+module Chip16 exposing (Chip16, init, dispatch)
 
 import Numbers exposing (..)
 import Slice exposing (Slice)
@@ -25,9 +25,12 @@ type alias Cpu =
     flags : Flags
   }
 
+type Palette = Palette (Slice Int)
+
 type alias Chip16 = 
   { cpu : Cpu,
-    memory : Memory }
+    memory : Memory,
+    palette : Palette }
 
 initFlags : Flags
 initFlags
@@ -42,6 +45,18 @@ initCpu =
   , sp = u16from 0
   , regs = Slice.new 16 (i16from 0)
   , flags = initFlags}
+
+initPalette : Palette
+initPalette = Palette
+  ( Slice.fromList
+    [ 0x000000, 0x000000
+    , 0x888888, 0xBF3932
+    , 0xDE7AAE, 0x4C3D21
+    , 0x905F25, 0xE49452
+    , 0xEAD979, 0x537A3B
+    , 0xABD54A, 0x252E38
+    , 0x00467F, 0x68ABCC
+    , 0xBCDEE4, 0xFFFFFF ])
 
 set_rx : Cpu -> Int8 -> Int16 -> Cpu
 set_rx cpu rx val
@@ -104,8 +119,9 @@ sub x y cpu =
 
 init : Chip16
 init = 
-  { cpu = initCpu,
-    memory = Memory.init }
+  { cpu = initCpu
+  , memory = Memory.init
+  , palette = initPalette}
 
 opLoad_RegImm : Chip16 -> Int8 -> Int16 -> Chip16
 opLoad_RegImm machine rx val
@@ -645,8 +661,31 @@ opPopf machine =
     | cpu = cpu
     , memory = Memory.set cpu.sp flags machine.memory }
 
-opPalAddr machine hhll = machine
-opPalReg machine rx = machine
+loadPal : Chip16 -> UInt16 -> Chip16
+loadPal machine addr =
+  let
+    getPal : Chip16 -> Slice Int
+    getPal mch = case mch.palette of
+      Palette sl -> sl
+    set : Chip16 -> Int -> Int -> Chip16
+    set mch idx color = { mch | palette = Palette (Slice.set idx color (getPal mch)) }
+    adder idx = (idx * 2) + to (U16 addr)
+  in
+    List.foldl
+      (\i mch -> case Memory.get (u16from (adder i)) machine.memory of
+        Just color -> set mch i (tobits (I16 color))
+        _ -> Debug.todo "address does not exist!")
+      machine
+      (List.range 0 15)
+
+opPalAddr : Chip16 -> UInt16 -> Chip16
+opPalAddr machine hhll = loadPal machine hhll
+
+opPalReg : Chip16 -> Int8 -> Chip16
+opPalReg machine rx =
+  case get_rx machine.cpu rx of
+    Just addr -> loadPal machine (tou16 (I16 addr))
+    _ -> Debug.todo "invalid register"
 
 not : Int16 -> Cpu -> (Int16, Cpu)
 not v cpu = 
