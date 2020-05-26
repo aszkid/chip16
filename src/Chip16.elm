@@ -226,16 +226,16 @@ opAddi machine rx val =
 
 opAdd2 : Chip16 -> Int8 -> Int8 -> Chip16
 opAdd2 machine rx ry =
-  case (get_rx machine.cpu rx, get_rx machine.cpu ry) of
-    (Just vx, Just vy) ->
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
       case add vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
     _ ->  Debug.todo "invalid registers"
 
 opAdd3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
 opAdd3 machine rx ry rz =
-  case (get_rx machine.cpu rx, get_rx machine.cpu ry, get_rx machine.cpu rz) of
-    (Just vx, Just vy, Just vz) ->
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
       case add vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
     _ ->  Debug.todo "invalid registers"
@@ -251,16 +251,16 @@ opSubi machine rx hhll =
 
 opSub2 : Chip16 -> Int8 -> Int8 -> Chip16
 opSub2 machine rx ry =
-  case (get_rx machine.cpu rx, get_rx machine.cpu ry) of
-    (Just vx, Just vy) ->
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
       case sub vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
     _ -> Debug.todo "invalid registers"
 
 opSub3 : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
 opSub3 machine rx ry rz =
-  case (get_rx machine.cpu rx, get_rx machine.cpu ry) of
-    (Just vx, Just vy) ->
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
       case sub vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
     _ -> Debug.todo "invalid regsiters"
@@ -275,8 +275,8 @@ opCmpi machine rx hhll =
 
 opCmp : Chip16 -> Int8 -> Int8 -> Chip16
 opCmp machine rx ry =
-  case (get_rx machine.cpu rx, get_rx machine.cpu ry) of
-    (Just vx, Just vy) ->
+  case get_rx2 machine.cpu rx ry of
+    Just (vx, vy) ->
       case sub vx vy machine.cpu of
         (_, cpu) -> { machine | cpu = cpu }
     _ -> Debug.todo "invalid registers"
