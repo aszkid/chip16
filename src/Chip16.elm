@@ -5,6 +5,7 @@ import Slice exposing (Slice)
 import Memory exposing (Memory)
 import Bitwise exposing (or, shiftLeftBy)
 import Random
+import Graphics exposing (..)
 
 type alias Flags =
   { carry : Bool
@@ -25,17 +26,7 @@ type alias Cpu =
     regs : Slice Int16,
     flags : Flags,
     seed : Random.Seed
-  }
-
-type Palette = Palette (Slice Int)
-type alias Graphics =
-  { palette : Palette
-  , bg : Int
-  , spritew : Int
-  , spriteh : Int
-  , hflip : Bool
-  , vflip : Bool }
-    
+  }    
 
 type alias Chip16 = 
   { cpu : Cpu,
@@ -76,7 +67,8 @@ initGraphics =
   , spritew = 0
   , spriteh = 0
   , hflip = False
-  , vflip = False }
+  , vflip = False
+  , cmdbuffer = [] }
 
 init : Chip16
 init = 

@@ -11,10 +11,13 @@ import File.Select as Select
 import Task
 import Bytes exposing (Bytes, Endianness (..))
 import Bytes.Decode as Decode exposing (Decoder)
-import Bytes.Extra
 import Bytes.Decode.Extra as Decode
 import Time
 import Hex
+import Canvas exposing (..)
+import Canvas.Settings exposing (..)
+import Color
+import Graphics
 
 main : Program Flags Model Msg
 main = 
@@ -34,6 +37,7 @@ type alias Model =
   , rom : Maybe Bytes
   , running : Bool
   , tick : Int
+  , screen : List (Renderable)
   }
 
 type alias Header =
@@ -106,6 +110,7 @@ initModel =
   , rom = Nothing
   , running = False
   , tick = 0
+  , screen = []
   }
 
 init : Flags -> (Model, Cmd Msg)
@@ -143,36 +148,36 @@ regs_table : Model -> Html Msg
 regs_table model =
   table [ class "table table-sm" ] [
     tr [] [
-      td [] [ b [] [text "R0 "], text (get_rx model 0x0) ],
-      td [] [ b [] [text "R8 "], text (get_rx model 0x8) ]
+      td [] [ b [] [Html.text "R0 "], Html.text (get_rx model 0x0) ],
+      td [] [ b [] [Html.text "R8 "], Html.text (get_rx model 0x8) ]
     ],
     tr [] [
-      td [] [ b [] [text "R1 "], text (get_rx model 0x1) ],
-      td [] [ b [] [text "R9 "], text (get_rx model 0x9) ]
+      td [] [ b [] [Html.text "R1 "], Html.text (get_rx model 0x1) ],
+      td [] [ b [] [Html.text "R9 "], Html.text (get_rx model 0x9) ]
     ],
     tr [] [
-      td [] [ b [] [text "R2 "], text (get_rx model 0x2) ],
-      td [] [ b [] [text "RA "], text (get_rx model 0xA) ]
+      td [] [ b [] [Html.text "R2 "], Html.text (get_rx model 0x2) ],
+      td [] [ b [] [Html.text "RA "], Html.text (get_rx model 0xA) ]
     ],
     tr [] [
-      td [] [ b [] [text "R3 "], text (get_rx model 0x3) ],
-      td [] [ b [] [text "RB "], text (get_rx model 0xB) ]
+      td [] [ b [] [Html.text "R3 "], Html.text (get_rx model 0x3) ],
+      td [] [ b [] [Html.text "RB "], Html.text (get_rx model 0xB) ]
     ],
     tr [] [
-      td [] [ b [] [text "R4 "], text (get_rx model 0x4) ],
-      td [] [ b [] [text "RC "], text (get_rx model 0xC) ]
+      td [] [ b [] [Html.text "R4 "], Html.text (get_rx model 0x4) ],
+      td [] [ b [] [Html.text "RC "], Html.text (get_rx model 0xC) ]
     ],
     tr [] [
-      td [] [ b [] [text "R5 "], text (get_rx model 0x5) ],
-      td [] [ b [] [text "RD "], text (get_rx model 0xD) ]
+      td [] [ b [] [Html.text "R5 "], Html.text (get_rx model 0x5) ],
+      td [] [ b [] [Html.text "RD "], Html.text (get_rx model 0xD) ]
     ],
     tr [] [
-      td [] [ b [] [text "R6 "], text (get_rx model 0x6) ],
-      td [] [ b [] [text "RE "], text (get_rx model 0xE) ]
+      td [] [ b [] [Html.text "R6 "], Html.text (get_rx model 0x6) ],
+      td [] [ b [] [Html.text "RE "], Html.text (get_rx model 0xE) ]
     ],
     tr [] [
-      td [] [ b [] [text "R7 "], text (get_rx model 0x7) ],
-      td [] [ b [] [text "RF "], text (get_rx model 0xF) ]
+      td [] [ b [] [Html.text "R7 "], Html.text (get_rx model 0x7) ],
+      td [] [ b [] [Html.text "RF "], Html.text (get_rx model 0xF) ]
     ]
   ]
 
@@ -181,47 +186,67 @@ controls model =
   div [id "controls"] [
     div [class "btn-toolbar"] [
       div [class "btn-group mr-2"] [
-        button [ type_ "button", class "btn btn-primary", onClick FileRequested ] [ text "Load ROM" ]
-        , button [ type_ "button", class "btn btn-warning", onClick Reset ] [ text "Reset" ]
+        button [ type_ "button", class "btn btn-primary", onClick FileRequested ] [ Html.text "Load ROM" ]
+        , button [ type_ "button", class "btn btn-warning", onClick Reset ] [ Html.text "Reset" ]
       ]
       , div [class "btn-group"] [
-        button [ type_ "button", class "btn btn-success", onClick (Step 1 True) ] [ text "Step" ]
-        , button [ type_ "button", class "btn btn-secondary", onClick (Running True) ] [ text "Start" ]
-        , button [ type_ "button", class "btn btn-danger", onClick (Running False) ] [ text "Pause" ]
+        button [ type_ "button", class "btn btn-success", onClick (Step 1 True) ] [ Html.text "Step" ]
+        , button [ type_ "button", class "btn btn-secondary", onClick (Running True) ] [ Html.text "Start" ]
+        , button [ type_ "button", class "btn btn-danger", onClick (Running False) ] [ Html.text "Pause" ]
       ]
     ]
     , div [id "info"] [
-      text ("File = " ++ Debug.toString model.file)
+      Html.text ("File = " ++ Debug.toString model.file)
       , br [] []
-      , text ("Running: " ++ Debug.toString model.running)-- ++ " | Tick: " ++ Debug.toString model.tick)
+      , Html.text ("Running: " ++ Debug.toString model.running)-- ++ " | Tick: " ++ Debug.toString model.tick)
       , br [] []
-      , text ("Flags: "
-              ++ Debug.toString model.machine.cpu.flags)
+      , Html.text ("Flags: " ++ Debug.toString model.machine.cpu.flags)
+      , br [] []
+      , Html.text ("Render commands: " ++ Debug.toString (List.length model.machine.graphics.cmdbuffer))
     ]
   ]
 
 inspector : Model -> Html Msg
 inspector model =
   div [id "inspector"] [
-    text ("Instruction = " ++ toStr (prefetch model))
+    Html.text ("Instruction = " ++ toStr (prefetch model))
     , br [] []
     , table [class "table table-sm"] [
       tr [] [
-        td [] [b [] [text "PC "], text ("0x" ++ toHex16 (to (U16 model.machine.cpu.pc)))]
+        td [] [b [] [Html.text "PC "], Html.text ("0x" ++ toHex16 (to (U16 model.machine.cpu.pc)))]
       ],
       tr [] [
-        td [] [b [] [text "SP "], text ("0x" ++ toHex16 (to (U16 model.machine.cpu.sp)))]
+        td [] [b [] [Html.text "SP "], Html.text ("0x" ++ toHex16 (to (U16 model.machine.cpu.sp)))]
       ]
     ]
     , regs_table model
   ]
 
+screen : Model -> Html Msg
+screen model =
+  let
+    width = 640
+    height = 480
+  in
+    div
+        [ style "display" "flex"
+        , style "justify-content" "center"
+        , style "align-items" "center"
+        ]
+        [ Canvas.toHtml (width, height)
+            [ style "border" "1px solid black" ]
+            --(List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) width height ]], render model ])
+            (render model)
+        ]
+render : Model -> List (Renderable)
+render model = Graphics.produce model.machine.graphics.cmdbuffer model.machine.graphics.palette
+
 view : Model -> Html Msg
 view model =
   div []
-    [ h1 [] [text "elm16"]
+    [ h1 [] [Html.text "elm16"]
     , div [class "d-flex flex-row"] [
-        div [id "screen"] [],
+        div [id "screen"] [ screen model ],
         inspector model
     ]
     , controls model
@@ -236,7 +261,8 @@ take_step model =
       Instruction a b c d ->
         { model
         | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
-        , tick = if should_vblank then 0 else model.tick + 1 }
+        , tick = if should_vblank then 0 else model.tick + 1
+        , screen = if should_vblank then List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) 640 480 ]], render model ] else model.screen }
 
 steps : Int -> Model -> Model
 steps n model =
