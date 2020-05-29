@@ -119,7 +119,7 @@ inc_pc by cpu =
   let
     new_pc = case Numbers.add (U16 cpu.pc) (U16 (u16from by)) of
       (U16 r, _) -> r
-      _ -> Debug.todo "dec_pc failed"
+      _ -> Debug.todo "inc_pc failed"
   in
     { cpu | pc = new_pc }
 

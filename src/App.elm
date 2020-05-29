@@ -113,12 +113,25 @@ init : Flags -> (Model, Cmd Msg)
 init () =
     (initModel, Cmd.none)
 
+prefetch : Model -> Instruction
+prefetch model =
+  case model.rom of
+    Nothing -> Instruction 0 0 0 0 -- not going to happen
+    Just rom ->
+      case Decode.decode (instructionDecoder (to (U16 model.machine.cpu.pc))) rom of
+        Just instr -> instr
+        _ -> Instruction 0 0 0 0
+
+toStr : Instruction -> String
+toStr (Instruction a b c d) =
+  Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d
+
 view : Model -> Html Msg
 view model =
   div []
     [ text ("File = " ++ Debug.toString model.file)
     , br [] []
-    , text ("Instruction = " ++ Debug.toString model.instruction)
+    , text ("Instruction = " ++ toStr (prefetch model))
     , br [] []
     , button [ class "btn btn-primary", onClick FileRequested ] [ text "Load ROM" ]
     , button [ class "btn btn-warning", onClick Reset ] [ text "Reset" ]
@@ -127,7 +140,7 @@ view model =
     , button [ class "btn btn-secondary", onClick (Running True) ] [ text "Start" ]
     , button [ class "btn btn-danger", onClick (Running False) ] [ text "Pause" ]
     , br [] []
-    , text ("Running: " ++ Debug.toString model.running ++ " | Tick: " ++ Debug.toString model.tick)
+    , text ("Running: " ++ Debug.toString model.running)-- ++ " | Tick: " ++ Debug.toString model.tick)
     , br [] []
     , text ("PC: "
             ++ Hex.toString (to (U16 model.machine.cpu.pc))
@@ -140,17 +153,22 @@ view model =
     , br [] []
     , text ("Rom: " ++ Debug.toString model.rom ) ]
 
+take_step : Model -> Bytes -> (Model, Instruction)
+take_step model rom =
+  let
+    should_vblank = model.tick >= 16666
+  in
+    case prefetch model of
+      Instruction a b c d ->
+        ( { model
+          | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
+          , tick = if should_vblank then 0 else model.tick + 1 }
+        , Instruction a b c d
+        )
+
 steps : Int -> Model -> Model
 steps n model =
   let
-    take_step : Model -> Bytes -> (Model, Instruction)
-    take_step the_model rom =
-      case Decode.decode (instructionDecoder (to (U16 the_model.machine.cpu.pc))) rom of
-        Just (Instruction a b c d) -> (
-          { the_model
-          | machine = dispatch the_model.machine False (i8from a) (i8from b) (i8from c) (i8from d)
-          , tick = the_model.tick + 1 }, Instruction a b c d)
-        _ -> Debug.todo "failed to decode instruction!"
     take_steps : Bytes -> (Model, Instruction)
     take_steps rom =
       List.foldl
@@ -191,4 +209,4 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every 1000 (\t -> Step 1000 False)
+  Time.every 60 (\t -> Step 10000 False)
