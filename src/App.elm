@@ -33,7 +33,6 @@ type alias Model =
   , hdr : Maybe Header
   , rom : Maybe Bytes
   , running : Bool
-  , instruction : String
   , tick : Int
   }
 
@@ -106,7 +105,6 @@ initModel =
   , hdr = Nothing
   , rom = Nothing
   , running = False
-  , instruction = ""
   , tick = 0
   }
 
@@ -229,38 +227,34 @@ view model =
     , controls model
     ]
 
-take_step : Model -> Bytes -> (Model, Instruction)
-take_step model rom =
+take_step : Model -> Model
+take_step model =
   let
     should_vblank = model.tick >= 16666
   in
     case prefetch model of
       Instruction a b c d ->
-        ( { model
-          | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
-          , tick = if should_vblank then 0 else model.tick + 1 }
-        , Instruction a b c d
-        )
+        { model
+        | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
+        , tick = if should_vblank then 0 else model.tick + 1 }
 
 steps : Int -> Model -> Model
 steps n model =
   let
-    take_steps : Bytes -> (Model, Instruction)
+    take_steps : Bytes -> Model
     take_steps rom =
       List.foldl
-        (\_ (the_model, _) -> take_step the_model rom)
-        (model, Instruction 0 0 0 0)
+        (\_ the_model -> take_step the_model)
+        model
         (List.range 1 n)
   in
     case model.rom of
       Nothing -> model
       Just rom ->
         let
-          (out_model, Instruction a b c d) = take_steps rom
+          out_model = take_steps rom
         in 
-          { out_model
-          | instruction = Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d
-          }
+          out_model
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -274,6 +268,8 @@ update msg model =
         { model
         | file = Just b
         , hdr = hdr
+        , machine = Chip16.init
+        , tick = 0
         , rom = case hdr of
             Just h -> Decode.decode (romDecoder h) b
             Nothing -> Nothing }
