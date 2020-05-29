@@ -1,6 +1,7 @@
 module App exposing (main)
 import Chip16 exposing (..)
 import Numbers exposing (Int8, ChipInt(..), to, i8from)
+import Slice exposing (get)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -126,32 +127,107 @@ toStr : Instruction -> String
 toStr (Instruction a b c d) =
   Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d
 
+toHex16 : Int -> String
+toHex16 v = 
+  let
+    out = Hex.toString v
+    pre = String.repeat (4 - String.length out) "0"
+  in
+    pre ++ out
+
+get_rx : Model -> Int -> String
+get_rx model i =
+  case Slice.get i model.machine.cpu.regs of
+    Just val -> "0x" ++ toHex16 (to (I16 val))
+    _ -> "0x0000"
+
+regs_table : Model -> Html Msg
+regs_table model =
+  table [ class "table table-sm" ] [
+    tr [] [
+      td [] [ b [] [text "R0 "], text (get_rx model 0x0) ],
+      td [] [ b [] [text "R8 "], text (get_rx model 0x8) ]
+    ],
+    tr [] [
+      td [] [ b [] [text "R1 "], text (get_rx model 0x1) ],
+      td [] [ b [] [text "R9 "], text (get_rx model 0x9) ]
+    ],
+    tr [] [
+      td [] [ b [] [text "R2 "], text (get_rx model 0x2) ],
+      td [] [ b [] [text "RA "], text (get_rx model 0xA) ]
+    ],
+    tr [] [
+      td [] [ b [] [text "R3 "], text (get_rx model 0x3) ],
+      td [] [ b [] [text "RB "], text (get_rx model 0xB) ]
+    ],
+    tr [] [
+      td [] [ b [] [text "R4 "], text (get_rx model 0x4) ],
+      td [] [ b [] [text "RC "], text (get_rx model 0xC) ]
+    ],
+    tr [] [
+      td [] [ b [] [text "R5 "], text (get_rx model 0x5) ],
+      td [] [ b [] [text "RD "], text (get_rx model 0xD) ]
+    ],
+    tr [] [
+      td [] [ b [] [text "R6 "], text (get_rx model 0x6) ],
+      td [] [ b [] [text "RE "], text (get_rx model 0xE) ]
+    ],
+    tr [] [
+      td [] [ b [] [text "R7 "], text (get_rx model 0x7) ],
+      td [] [ b [] [text "RF "], text (get_rx model 0xF) ]
+    ]
+  ]
+
+controls : Model -> Html Msg
+controls model =
+  div [id "controls"] [
+    div [class "btn-toolbar"] [
+      div [class "btn-group mr-2"] [
+        button [ type_ "button", class "btn btn-primary", onClick FileRequested ] [ text "Load ROM" ]
+        , button [ type_ "button", class "btn btn-warning", onClick Reset ] [ text "Reset" ]
+      ]
+      , div [class "btn-group"] [
+        button [ type_ "button", class "btn btn-success", onClick (Step 1 True) ] [ text "Step" ]
+        , button [ type_ "button", class "btn btn-secondary", onClick (Running True) ] [ text "Start" ]
+        , button [ type_ "button", class "btn btn-danger", onClick (Running False) ] [ text "Pause" ]
+      ]
+    ]
+    , div [id "info"] [
+      text ("File = " ++ Debug.toString model.file)
+      , br [] []
+      , text ("Running: " ++ Debug.toString model.running)-- ++ " | Tick: " ++ Debug.toString model.tick)
+      , br [] []
+      , text ("Flags: "
+              ++ Debug.toString model.machine.cpu.flags)
+    ]
+  ]
+
+inspector : Model -> Html Msg
+inspector model =
+  div [id "inspector"] [
+    text ("Instruction = " ++ toStr (prefetch model))
+    , br [] []
+    , table [class "table table-sm"] [
+      tr [] [
+        td [] [b [] [text "PC "], text ("0x" ++ toHex16 (to (U16 model.machine.cpu.pc)))]
+      ],
+      tr [] [
+        td [] [b [] [text "SP "], text ("0x" ++ toHex16 (to (U16 model.machine.cpu.sp)))]
+      ]
+    ]
+    , regs_table model
+  ]
+
 view : Model -> Html Msg
 view model =
   div []
-    [ text ("File = " ++ Debug.toString model.file)
-    , br [] []
-    , text ("Instruction = " ++ toStr (prefetch model))
-    , br [] []
-    , button [ class "btn btn-primary", onClick FileRequested ] [ text "Load ROM" ]
-    , button [ class "btn btn-warning", onClick Reset ] [ text "Reset" ]
-    , br [] []
-    , button [ class "btn btn-success", onClick (Step 1 True) ] [ text "Step" ]
-    , button [ class "btn btn-secondary", onClick (Running True) ] [ text "Start" ]
-    , button [ class "btn btn-danger", onClick (Running False) ] [ text "Pause" ]
-    , br [] []
-    , text ("Running: " ++ Debug.toString model.running)-- ++ " | Tick: " ++ Debug.toString model.tick)
-    , br [] []
-    , text ("PC: "
-            ++ Hex.toString (to (U16 model.machine.cpu.pc))
-            ++ ", SP: "
-            ++ Hex.toString (to (U16 model.machine.cpu.sp))
-            ++ ", Flags: "
-            ++ Debug.toString model.machine.cpu.flags)
-    , br [] []
-    , text ("Header: " ++ Debug.toString model.hdr )
-    , br [] []
-    , text ("Rom: " ++ Debug.toString model.rom ) ]
+    [ h1 [] [text "elm16"]
+    , div [class "d-flex flex-row"] [
+        div [id "screen"] [],
+        inspector model
+    ]
+    , controls model
+    ]
 
 take_step : Model -> Bytes -> (Model, Instruction)
 take_step model rom =

@@ -1,11 +1,20 @@
 #screen {
-    width: 500px;
-    height: 500px;
-    background-color: black;
+    width: 640px;
+    height: 480px;
+    background-color: #500000;
 }
 
-#execbar {
-    height: 500px;
-    width: 100px;
-    background-color: red;
+#controls {
+    margin-top: 10px;
+}
+
+#inspector {
+    padding: 10px;
+}
+
+#info {
+    font-family: monospace;
+    background-color: rgb(240, 240, 240);
+    padding: 10px;
+    margin-top: 10px;
 }
