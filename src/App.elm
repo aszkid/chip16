@@ -243,7 +243,7 @@ inspector model =
                 case Memory.get (u16from (i * 2)) model.machine.memory of
                   Just v -> tr [] [ td [] [Html.text (toHex16 (to (U16 (u16from (i * 2)))))], td [] [Html.text (Hex.toString (to (U16 (Numbers.tou16 (I16 v)))))]]
                   _ -> tr [] [])
-              (List.range 0 200))
+              (List.range 0 800))
         ],
         div [id "stack", class "flex-fill"] [
           table [class "table table-sm"]

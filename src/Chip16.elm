@@ -223,8 +223,8 @@ opStore_Imm machine rx addr =
 
 opStore_Reg : Chip16 -> Int8 -> Int8 -> Chip16
 opStore_Reg machine rx ry =
-  case get_rx machine.cpu ry of
-    Just addr -> { machine | memory = Memory.set (tou16 (I16 addr)) (toi16 (I8 rx)) machine.memory }
+  case get_rx2 machine.cpu rx ry of
+    Just (val, addr) -> { machine | memory = Memory.set (tou16 (I16 addr)) val machine.memory }
     _ -> Debug.todo ("invalid register: " ++ (Debug.toString ry))
 
 opAddi : Chip16 -> Int8 -> Int16 -> Chip16
