@@ -90,6 +90,13 @@ instructionDecoder pc =
             _ -> Debug.todo "failed to decode isntruction")
           Decode.unsignedInt8))
 
+bytesToMemory : Bytes -> Int -> Decoder (Slice Int16)
+bytesToMemory rom romsz = 
+  Decode.loop
+    (0, 0, 0, []) -- index, LL HH, result
+    (\(idx, LL, HH, res) -> if i == romsz then Decode.succeed (Decode.Done res) else
+        (if idx % 2 then ))
+
 type Msg
   = FileRequested
   | FileLoaded File
@@ -198,11 +205,13 @@ controls model =
     , div [id "info"] [
       Html.text ("File = " ++ Debug.toString model.file)
       , br [] []
-      , Html.text ("Running: " ++ Debug.toString model.running)-- ++ " | Tick: " ++ Debug.toString model.tick)
+      , Html.text ("Running: " ++ Debug.toString model.running ++ " | Tick: " ++ Debug.toString model.tick)
       , br [] []
       , Html.text ("Flags: " ++ Debug.toString model.machine.cpu.flags)
       , br [] []
       , Html.text ("Render commands: " ++ Debug.toString (List.length model.machine.graphics.cmdbuffer))
+      , br [] []
+      , Html.text ("Graphics state: " ++ Debug.toString model.machine.graphics)
     ]
   ]
 
@@ -290,15 +299,18 @@ update msg model =
     FileContentLoaded b ->
       let
         hdr = Decode.decode headerDecoder b
+        rom = case hdr of
+          Just h -> Decode.decode (romDecoder h) b
+          Nothing -> Nothing
       in (
         { model
         | file = Just b
         , hdr = hdr
-        , machine = Chip16.init
+        , machine = case rom of
+            Just theRom -> Chip16.initFrom theRom
+            _ -> Chip16.init
         , tick = 0
-        , rom = case hdr of
-            Just h -> Decode.decode (romDecoder h) b
-            Nothing -> Nothing }
+        , rom = rom}
         , Cmd.none
       )
     Step n force -> if model.running || force then (steps n model, Cmd.none) else (model, Cmd.none)

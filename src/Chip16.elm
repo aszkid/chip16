@@ -1,4 +1,4 @@
-module Chip16 exposing (Chip16, init, dispatch)
+module Chip16 exposing (Chip16, init, initFrom, dispatch)
 
 import Numbers exposing (..)
 import Slice exposing (Slice)
@@ -74,6 +74,12 @@ init : Chip16
 init = 
   { cpu = initCpu
   , memory = Memory.init
+  , graphics = initGraphics }
+
+initFrom : Slice Int16 -> Chip16
+initFrom rom = 
+  { cpu = initCpu
+  , memory = Memory.initFrom rom
   , graphics = initGraphics }
 
 set_rx : Cpu -> Int8 -> Int16 -> Cpu
@@ -833,13 +839,18 @@ opBgc machine n =
 
 opSpr : Chip16 -> Int8 -> Int8 -> Chip16
 opSpr machine w h =
-  { machine | graphics = set_spritewh (to (I8 w)) (to (I8 h)) machine.graphics }
+  case Debug.log "sprite: " (w, h) of
+    _ -> { machine | graphics = set_spritewh (to (I8 w)) (to (I8 h)) machine.graphics }
 
 opDrwMem : Chip16 -> Int8 -> Int8 -> UInt16 -> Chip16
-opDrwMem machine rx ry hhll = machine
+opDrwMem machine rx ry hhll =
+  case Debug.log "draw from literal: " (rx, ry) of
+    _ -> machine
 
 opDrwReg : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
-opDrwReg machine rx ry rz = machine
+opDrwReg machine rx ry rz =
+  case Debug.log "drawing from regs: " (rx, ry) of
+    _ -> machine
 
 opRnd : Chip16 -> Int8 -> UInt16 -> Chip16
 opRnd machine rx hhll =
