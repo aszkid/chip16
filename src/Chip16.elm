@@ -43,7 +43,7 @@ initFlags
 initCpu : Cpu
 initCpu = 
   { pc = u16from 0
-  , sp = u16from 0
+  , sp = u16from 0xFDF0
   , regs = Slice.new 16 (i16from 0)
   , flags = initFlags
   , seed = Random.initialSeed 42 }

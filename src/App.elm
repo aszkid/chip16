@@ -277,8 +277,8 @@ screen model =
         ]
         [ Canvas.toHtml (width, height)
             [ style "border" "1px solid black" ]
-            (shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: render model)
-            --(render model)
+            --(shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: render model)
+            (render model)
         ]
 render : Model -> List (Renderable)
 render model = Graphics.produce model.machine.graphics.cmdbuffer model.machine.graphics.palette
