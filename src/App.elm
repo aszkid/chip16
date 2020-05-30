@@ -225,7 +225,10 @@ controls model =
 inspector : Model -> Html Msg
 inspector model =
   div [id "inspector"] [
-    Html.text ("Instruction = " ++ toStr (prefetch model))
+    case prefetch model of
+      Instruction a b c d ->
+        case Debug.log "Instruction: " (Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d) of
+          _ -> Html.text ("Instruction = " ++ toStr (prefetch model))
     , br [] []
     , table [class "table table-sm"] [
       tr [] [
@@ -275,11 +278,10 @@ take_step model =
   in
     case prefetch model of
       Instruction a b c d ->
-        case Debug.log "Instruction: " (Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d) of
-        _ -> { model
-          | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
-          , tick = if should_vblank then 0 else model.tick + 1
-          , screen = if should_vblank then List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) 640 480 ]], render model ] else model.screen }
+        { model
+        | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
+        , tick = if should_vblank then 0 else model.tick + 1
+        , screen = if should_vblank then List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) 640 480 ]], render model ] else model.screen }
 
 steps : Int -> Model -> Model
 steps n model =

@@ -1,4 +1,4 @@
-app.js: src/App.elm
+app.js: src/*
 	elm make src/App.elm --output app.js
 
 clean:

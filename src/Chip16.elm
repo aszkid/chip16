@@ -879,12 +879,33 @@ opJmc machine hhll =
     { machine | cpu = set_sp machine.cpu hhll }
   else
     machine
+
+shouldJump : Int -> Flags -> Bool
+shouldJump x fs =
+  case x of
+    0x0 -> fs.zero
+    0x1 -> Basics.not fs.zero
+    0x2 -> fs.negative
+    0x3 -> Basics.not fs.negative
+    0x4 -> (Basics.not fs.negative) && (Basics.not fs.zero)
+    0x5 -> fs.overflow
+    0x6 -> Basics.not fs.overflow
+    0x7 -> (Basics.not fs.carry) && (Basics.not fs.zero)
+    0x8 -> Basics.not fs.carry
+    0x9 -> fs.carry
+    0xA -> fs.carry || fs.zero
+    0xB -> (fs.overflow == fs.negative) && (Basics.not fs.zero)
+    0xC -> fs.overflow == fs.negative
+    0xD -> fs.overflow /=  fs.negative
+    0xE -> (fs.overflow /= fs.negative) || fs.zero
+    _ -> Debug.todo "invalid branch type"
+
 opJx : Chip16 -> Int8 -> UInt16 -> Chip16
 opJx machine x hhll =
-  if isZero (I8 x) then
-    machine
-  else
+  if shouldJump (to (I8 x)) machine.cpu.flags then
     { machine | cpu = set_sp machine.cpu hhll }
+  else
+    machine
 
 opJme : Chip16 -> Int8 -> Int8 -> UInt16 -> Chip16
 opJme machine rx ry hhll =
@@ -929,10 +950,10 @@ opJmp machine rx =
 
 opCx : Chip16 -> Int8 -> UInt16 -> Chip16
 opCx machine x hhll =
-  if isZero (I8 x) then
-    machine
-  else
+  if shouldJump (to (I8 x)) machine.cpu.flags then
     opCalli machine hhll
+  else
+    machine
 
 opCall : Chip16 -> Int8 -> Chip16
 opCall machine rx = 
