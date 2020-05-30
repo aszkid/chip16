@@ -1,4 +1,4 @@
-module Graphics exposing (Command(..), Graphics, Palette(..), produce, append, getColor)
+module Graphics exposing (Command(..), Graphics, Palette(..), produce, append, getColor, clear)
 
 import Canvas exposing (Shape, Renderable, rect, shapes)
 import Canvas.Settings exposing (..)
@@ -51,3 +51,7 @@ produce cmds (Palette pal) =
             produce_cmd
             --(List.reverse cmds)
             cmds
+
+clear : Graphics -> Graphics
+clear g =
+  { g | cmdbuffer = [] }

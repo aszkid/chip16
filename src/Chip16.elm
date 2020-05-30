@@ -831,7 +831,7 @@ opNeg2 machine rx ry =
 
 opCls : Chip16 -> Chip16
 opCls machine =
- { machine | graphics = set_bg 0 (clear_fg machine.graphics) }
+ { machine | graphics = Graphics.clear (set_bg 0 (clear_fg machine.graphics)) }
 
 opBgc : Chip16 -> Int8 -> Chip16
 opBgc machine n =
