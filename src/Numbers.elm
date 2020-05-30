@@ -260,7 +260,7 @@ buildLEs (Int8 low) (Int8 hi) = Int16 (Bitwise.or (shiftLeftBy 8 hi) low)
 
 unpackLE : Int16 -> (Int8, Int8)
 unpackLE (Int16 val) =
-  (Int8 (Bitwise.and 0xFF val), Int8 (Bitwise.shiftRightZfBy 4 val)) -- LL, HH
+  (Int8 (Bitwise.and 0xFF val), Int8 (Bitwise.shiftRightZfBy 8 val)) -- LL, HH
 
 nibbleLO : Int8 -> Int8
 nibbleLO (Int8 b) = Int8 (Bitwise.and b 0xF)

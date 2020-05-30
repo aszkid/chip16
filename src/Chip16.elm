@@ -43,7 +43,7 @@ initFlags
 initCpu : Cpu
 initCpu = 
   { pc = u16from 0
-  , sp = u16from 0xFDF0
+  , sp = Memory.stackAddr
   , regs = Slice.new 16 (i16from 0)
   , flags = initFlags
   , seed = Random.initialSeed 42 }
@@ -78,11 +78,9 @@ init =
 
 initFrom : Memory -> Chip16
 initFrom memory = 
-  case Debug.log "initfrom" memory of
-    _ -> 
-      { cpu = initCpu
-      , memory = memory
-      , graphics = initGraphics }
+  { cpu = initCpu
+  , memory = memory
+  , graphics = initGraphics }
 
 set_rx : Cpu -> Int8 -> Int16 -> Cpu
 set_rx cpu rx val

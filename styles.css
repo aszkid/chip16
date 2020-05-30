@@ -19,7 +19,7 @@
     margin-top: 10px;
 }
 
-#memory {
+#memory, #stack {
     height: 480px;
     overflow: auto;
     width: 100%;

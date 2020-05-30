@@ -166,34 +166,26 @@ regs_table model =
   table [ class "table table-sm" ] [
     tr [] [
       td [] [ b [] [Html.text "R0 "], Html.text (get_rx model 0x0) ],
-      td [] [ b [] [Html.text "R8 "], Html.text (get_rx model 0x8) ]
-    ],
-    tr [] [
-      td [] [ b [] [Html.text "R1 "], Html.text (get_rx model 0x1) ],
-      td [] [ b [] [Html.text "R9 "], Html.text (get_rx model 0x9) ]
-    ],
-    tr [] [
-      td [] [ b [] [Html.text "R2 "], Html.text (get_rx model 0x2) ],
-      td [] [ b [] [Html.text "RA "], Html.text (get_rx model 0xA) ]
-    ],
-    tr [] [
-      td [] [ b [] [Html.text "R3 "], Html.text (get_rx model 0x3) ],
-      td [] [ b [] [Html.text "RB "], Html.text (get_rx model 0xB) ]
-    ],
-    tr [] [
       td [] [ b [] [Html.text "R4 "], Html.text (get_rx model 0x4) ],
+      td [] [ b [] [Html.text "R8 "], Html.text (get_rx model 0x8) ],
       td [] [ b [] [Html.text "RC "], Html.text (get_rx model 0xC) ]
     ],
     tr [] [
+      td [] [ b [] [Html.text "R1 "], Html.text (get_rx model 0x1) ],
       td [] [ b [] [Html.text "R5 "], Html.text (get_rx model 0x5) ],
+      td [] [ b [] [Html.text "R9 "], Html.text (get_rx model 0x9) ],
       td [] [ b [] [Html.text "RD "], Html.text (get_rx model 0xD) ]
     ],
     tr [] [
+      td [] [ b [] [Html.text "R2 "], Html.text (get_rx model 0x2) ],
       td [] [ b [] [Html.text "R6 "], Html.text (get_rx model 0x6) ],
+      td [] [ b [] [Html.text "RA "], Html.text (get_rx model 0xA) ],
       td [] [ b [] [Html.text "RE "], Html.text (get_rx model 0xE) ]
     ],
     tr [] [
+      td [] [ b [] [Html.text "R3 "], Html.text (get_rx model 0x3) ],
       td [] [ b [] [Html.text "R7 "], Html.text (get_rx model 0x7) ],
+      td [] [ b [] [Html.text "RB "], Html.text (get_rx model 0xB) ],
       td [] [ b [] [Html.text "RF "], Html.text (get_rx model 0xF) ]
     ]
   ]
@@ -227,17 +219,10 @@ controls model =
 
 inspector : Model -> Html Msg
 inspector model =
-  div [id "inspector"
-      , style "display" "flex"
-      , style "justify-content" "center"
-      , style "align-items" "top"
-      , class "flex-fill"
-      ] [
+  div [id "inspector", class "flex-fill"] [
     div [] [
       case prefetch model of
-        Instruction a b c d ->
-          case Debug.log "Instruction: " (Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d) of
-            _ -> Html.text ("Instruction = " ++ toStr (prefetch model))
+        Instruction a b c d -> Html.text ("Instruction = " ++ toStr (prefetch model))
       , br [] []
       , table [class "table table-sm"] [
         tr [] [
@@ -246,17 +231,30 @@ inspector model =
         tr [] [
           td [] [b [] [Html.text "SP "], Html.text ("0x" ++ toHex16 (to (U16 model.machine.cpu.sp)))]
         ]
+      ],
+      div [style "display" "flex"
+          , style "justify-content" "center"
+          , style "align-items" "top"
+          ] [
+        div [id "memory", class "flex-fill"] [
+          table [class "table table-sm"]
+            (List.map
+              (\i ->
+                case Memory.get (u16from (i * 2)) model.machine.memory of
+                  Just v -> tr [] [ td [] [Html.text (toHex16 (to (U16 (u16from (i * 2)))))], td [] [Html.text (Hex.toString (to (U16 (Numbers.tou16 (I16 v)))))]]
+                  _ -> tr [] [])
+              (List.range 0 200))
+        ],
+        div [id "stack", class "flex-fill"] [
+          table [class "table table-sm"]
+            (List.map
+              (\i ->
+                case Memory.get (u16from (0xFDF0 + i * 2)) model.machine.memory of
+                  Just v -> tr [] [ td [] [Html.text (toHex16 (to (U16 (u16from (0xFDF0 + i * 2)))))], td [] [Html.text (Hex.toString (to (U16 (Numbers.tou16 (I16 v)))))]]
+                  _ -> tr [] [])
+              (List.range 0 200))
+        ]
       ]
-      , regs_table model
-    ],
-    div [id "memory"] [
-      table [class "table table-sm"]
-        (List.map
-          (\i ->
-            case Memory.get (u16from (i * 2)) model.machine.memory of
-              Just v -> tr [] [ td [] [Html.text (toHex16 (to (U16 (u16from (i * 2)))))], td [] [Html.text (Debug.toString v)]]
-              _ -> tr [] [])
-          (List.range 0 200))
     ]
   ]
 
@@ -273,8 +271,8 @@ screen model =
         ]
         [ Canvas.toHtml (width, height)
             [ style "border" "1px solid black" ]
-            --(shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: render model)
-            (render model)
+            (shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: render model)
+            --(render model)
         ]
 render : Model -> List (Renderable)
 render model = Graphics.produce model.machine.graphics.cmdbuffer model.machine.graphics.palette
@@ -282,9 +280,12 @@ render model = Graphics.produce model.machine.graphics.cmdbuffer model.machine.g
 view : Model -> Html Msg
 view model =
   div []
-    [ h1 [] [Html.text "elm16"]
+    [ h1 [] [Html.text "CHIP16"]
     , div [class "d-flex flex-row"] [
-        div [id "screen"] [ screen model ],
+        div [id "screen"] [
+          screen model
+          , regs_table model
+        ],
         inspector model
     ]
     , controls model

@@ -1,10 +1,12 @@
-module Memory exposing (Memory, init, get, get8, set, set8)
+module Memory exposing (Memory, init, get, get8, set, set8, stackAddr)
 
 import Numbers exposing (Int8, UInt16, Int16, i8from, u16from, to, ChipInt (..))
 import Slice exposing (Slice)
 
 type Memory = Memory (Slice Int8)
 memoryLength = 65536
+stackAddr : UInt16
+stackAddr = u16from 0xFDF0
 
 init : Memory
 init = Memory (Slice.new memoryLength (i8from 0))
