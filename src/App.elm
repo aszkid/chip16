@@ -1,7 +1,7 @@
 module App exposing (main)
 import Chip16 exposing (..)
-import Numbers exposing (Int8, ChipInt(..), to, i8from)
-import Slice exposing (get)
+import Numbers exposing (Int8, Int16, ChipInt(..), to, i8from, i16from)
+import Slice exposing (Slice, get)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -90,12 +90,18 @@ instructionDecoder pc =
             _ -> Debug.todo "failed to decode isntruction")
           Decode.unsignedInt8))
 
-bytesToMemory : Bytes -> Int -> Decoder (Slice Int16)
-bytesToMemory rom romsz = 
+looper : Int -> (Int, Slice Int16) -> Decoder (Decode.Step (Int, Slice Int16) (Slice Int16))
+looper romsz (idx, slice) = 
+  if idx == romsz then
+    Decode.succeed (Decode.Done slice)
+  else
+    Decode.map (\v16 -> Decode.Loop (idx + 2, Slice.set idx (i16from v16) slice)) (Decode.unsignedInt16 LE)
+
+bytesToMemory : Int -> Decoder (Slice Int16)
+bytesToMemory romsz = 
   Decode.loop
-    (0, 0, 0, []) -- index, LL HH, result
-    (\(idx, LL, HH, res) -> if i == romsz then Decode.succeed (Decode.Done res) else
-        (if idx % 2 then ))
+    (0, Slice.new 65536 (i16from 0)) -- index, LL HH, result
+    (looper romsz)
 
 type Msg
   = FileRequested
@@ -268,10 +274,11 @@ take_step model =
   in
     case prefetch model of
       Instruction a b c d ->
-        { model
-        | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
-        , tick = if should_vblank then 0 else model.tick + 1
-        , screen = if should_vblank then List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) 640 480 ]], render model ] else model.screen }
+        case Debug.log "Instruction: " (Hex.toString a ++ " " ++ Hex.toString b) of
+        _ -> { model
+          | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
+          , tick = if should_vblank then 0 else model.tick + 1
+          , screen = if should_vblank then List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) 640 480 ]], render model ] else model.screen }
 
 steps : Int -> Model -> Model
 steps n model =
@@ -306,8 +313,10 @@ update msg model =
         { model
         | file = Just b
         , hdr = hdr
-        , machine = case rom of
-            Just theRom -> Chip16.initFrom theRom
+        , machine = case (hdr, rom) of
+            (Just theHdr, Just theRom) -> case Decode.decode (bytesToMemory theHdr.romsz) theRom of
+              Just memslice -> Chip16.initFrom memslice
+              _ -> Chip16.init
             _ -> Chip16.init
         , tick = 0
         , rom = rom}

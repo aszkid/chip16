@@ -1,4 +1,4 @@
-module Slice exposing (Slice, new, fromList, get, length, set, append)
+module Slice exposing (Slice, new, fromList, get, length, set, append, push)
 import Array
 
 -- `Slice` is a typesafe fixed-length array
@@ -19,3 +19,4 @@ length (Slice n arr) = n
 -- manipulate
 set i val (Slice n arr) = Slice n (Array.set i val arr)
 append (Slice n1 arr1) (Slice n2 arr2) = Slice (n1+n2) (Array.append arr1 arr2)
+push val (Slice n arr) = Slice (n+1) (Array.push val arr)
