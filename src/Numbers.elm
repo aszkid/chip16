@@ -2,7 +2,7 @@ module Numbers exposing
   ( Int8, Int16, UInt8, UInt16, ChipInt (..), Shift (..)
   , add, sub, neg, mul, div, mod, rem, and, or, xor, shl, shr, not
   , add__, mul__, div__
-  , buildLE, nibbleLO, nibbleHI, unpackLE
+  , buildLE, buildLEs, nibbleLO, nibbleHI, unpackLE
   , i8from, i16from, u16from
   , to, tou16, toi16, tobits
   , isNeg, isPos, isZero, eq)
@@ -254,6 +254,9 @@ eq x y = to x == to y
 
 buildLE : Int8 -> Int8 -> UInt16
 buildLE (Int8 low) (Int8 hi) = UInt16 (Bitwise.or (shiftLeftBy 8 hi) low)
+
+buildLEs : Int8 -> Int8 -> Int16
+buildLEs (Int8 low) (Int8 hi) = Int16 (Bitwise.or (shiftLeftBy 8 hi) low)
 
 unpackLE : Int16 -> (Int8, Int8)
 unpackLE (Int16 val) =

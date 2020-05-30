@@ -98,14 +98,10 @@ bytesToMemory romsz =
     looper (idx, mem) = 
       if idx == romsz then
         Decode.succeed (Decode.Done mem)
-      else if idx == romsz-1 then
+      else
         Decode.map
           (\v8 -> Decode.Loop (idx + 1, Memory.set (u16from idx) (i16from v8) mem))
           Decode.unsignedInt8
-      else
-        Decode.map
-          (\v16 -> Decode.Loop (idx + 2, Memory.set (u16from idx) (i16from v16) mem))
-          (Decode.unsignedInt16 LE)
   in
     Decode.loop
       (0, Memory.init)
