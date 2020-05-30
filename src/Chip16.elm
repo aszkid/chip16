@@ -76,11 +76,13 @@ init =
   , memory = Memory.init
   , graphics = initGraphics }
 
-initFrom : Slice Int16 -> Chip16
-initFrom rom = 
-  { cpu = initCpu
-  , memory = Memory.initFrom rom
-  , graphics = initGraphics }
+initFrom : Memory -> Chip16
+initFrom memory = 
+  case Debug.log "initfrom" memory of
+    _ -> 
+      { cpu = initCpu
+      , memory = memory
+      , graphics = initGraphics }
 
 set_rx : Cpu -> Int8 -> Int16 -> Cpu
 set_rx cpu rx val
@@ -845,7 +847,7 @@ opSpr machine w h =
 drawRow : (Float, Float) -> UInt16 -> Chip16 -> Int -> List (Command)
 drawRow (x, y) addr machine row =
   let
-    row_offset = Numbers.mul__ (Numbers.div__ (U16 (u16from machine.graphics.spritew)) (U16 (u16from 2))) (U16 (u16from row))
+    row_offset = U16 (u16from (row * machine.graphics.spritew // 2))
     idx i = case Numbers.add__ (U16 addr) (Numbers.add__ (U16 (u16from i)) row_offset) of
       U16 v -> v
       _ -> Debug.todo "oops"
@@ -903,12 +905,12 @@ opSng machine ad vtsr = machine
 
 opJmpi : Chip16 -> UInt16 -> Chip16
 opJmpi machine hhll
-  = { machine | cpu = set_sp machine.cpu hhll }
+  = { machine | cpu = set_pc machine.cpu hhll }
 
 opJmc : Chip16 -> UInt16 -> Chip16
 opJmc machine hhll =
   if machine.cpu.flags.carry then
-    { machine | cpu = set_sp machine.cpu hhll }
+    { machine | cpu = set_pc machine.cpu hhll }
   else
     machine
 
@@ -935,7 +937,7 @@ shouldJump x fs =
 opJx : Chip16 -> Int8 -> UInt16 -> Chip16
 opJx machine x hhll =
   if shouldJump (to (I8 x)) machine.cpu.flags then
-    { machine | cpu = set_sp machine.cpu hhll }
+    opJmpi machine hhll
   else
     machine
 
@@ -944,7 +946,7 @@ opJme machine rx ry hhll =
   case get_rx2 machine.cpu rx ry of
     Just (vx, vy) ->
       if Numbers.eq (I16 vx) (I16 vy) then
-        { machine | cpu = set_sp machine.cpu hhll }
+        { machine | cpu = set_pc machine.cpu hhll }
       else
         machine
     _ -> Debug.todo "invalid registers"

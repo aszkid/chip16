@@ -1,6 +1,6 @@
 module App exposing (main)
 import Chip16 exposing (..)
-import Numbers exposing (Int8, Int16, ChipInt(..), to, i8from, i16from)
+import Numbers exposing (Int8, Int16, ChipInt(..), to, i8from, i16from, u16from)
 import Slice exposing (Slice, get)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -18,6 +18,7 @@ import Canvas exposing (..)
 import Canvas.Settings exposing (..)
 import Color
 import Graphics
+import Memory exposing (Memory)
 
 main : Program Flags Model Msg
 main = 
@@ -90,18 +91,24 @@ instructionDecoder pc =
             _ -> Debug.todo "failed to decode isntruction")
           Decode.unsignedInt8))
 
-bytesToMemory : Int -> Decoder (Slice Int16)
+bytesToMemory : Int -> Decoder Memory
 bytesToMemory romsz = 
   let
-    looper : (Int, Slice Int16) -> Decoder (Decode.Step (Int, Slice Int16) (Slice Int16))
-    looper (idx, slice) = 
+    looper : (Int, Memory) -> Decoder (Decode.Step (Int, Memory) (Memory))
+    looper (idx, mem) = 
       if idx == romsz then
-        Decode.succeed (Decode.Done slice)
+        Decode.succeed (Decode.Done mem)
+      else if idx == romsz-1 then
+        Decode.map
+          (\v8 -> Decode.Loop (idx + 1, Memory.set (u16from idx) (i16from v8) mem))
+          Decode.unsignedInt8
       else
-        Decode.map (\v16 -> Decode.Loop (idx + 2, Slice.set idx (i16from v16) slice)) (Decode.unsignedInt16 LE)
+        Decode.map
+          (\v16 -> Decode.Loop (idx + 2, Memory.set (u16from idx) (i16from v16) mem))
+          (Decode.unsignedInt16 LE)
   in
     Decode.loop
-      (0, Slice.new 65536 (i16from 0))
+      (0, Memory.init)
       looper
 
 type Msg
@@ -224,21 +231,37 @@ controls model =
 
 inspector : Model -> Html Msg
 inspector model =
-  div [id "inspector"] [
-    case prefetch model of
-      Instruction a b c d ->
-        case Debug.log "Instruction: " (Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d) of
-          _ -> Html.text ("Instruction = " ++ toStr (prefetch model))
-    , br [] []
-    , table [class "table table-sm"] [
-      tr [] [
-        td [] [b [] [Html.text "PC "], Html.text ("0x" ++ toHex16 (to (U16 model.machine.cpu.pc)))]
-      ],
-      tr [] [
-        td [] [b [] [Html.text "SP "], Html.text ("0x" ++ toHex16 (to (U16 model.machine.cpu.sp)))]
+  div [id "inspector"
+      , style "display" "flex"
+      , style "justify-content" "center"
+      , style "align-items" "top"
+      , class "flex-fill"
+      ] [
+    div [] [
+      case prefetch model of
+        Instruction a b c d ->
+          case Debug.log "Instruction: " (Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d) of
+            _ -> Html.text ("Instruction = " ++ toStr (prefetch model))
+      , br [] []
+      , table [class "table table-sm"] [
+        tr [] [
+          td [] [b [] [Html.text "PC "], Html.text ("0x" ++ toHex16 (to (U16 model.machine.cpu.pc)))]
+        ],
+        tr [] [
+          td [] [b [] [Html.text "SP "], Html.text ("0x" ++ toHex16 (to (U16 model.machine.cpu.sp)))]
+        ]
       ]
+      , regs_table model
+    ],
+    div [id "memory"] [
+      table [class "table table-sm"]
+        (List.map
+          (\i ->
+            case Memory.get (u16from (i * 2)) model.machine.memory of
+              Just v -> tr [] [ td [] [Html.text (toHex16 (to (U16 (u16from (i * 2)))))], td [] [Html.text (Debug.toString v)]]
+              _ -> tr [] [])
+          (List.range 0 200))
     ]
-    , regs_table model
   ]
 
 screen : Model -> Html Msg
@@ -254,8 +277,8 @@ screen model =
         ]
         [ Canvas.toHtml (width, height)
             [ style "border" "1px solid black" ]
-            --(List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) width height ]], render model ])
-            (render model)
+            (shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: render model)
+            --(render model)
         ]
 render : Model -> List (Renderable)
 render model = Graphics.produce model.machine.graphics.cmdbuffer model.machine.graphics.palette
@@ -318,9 +341,9 @@ update msg model =
         , hdr = hdr
         , machine = case (hdr, rom) of
             (Just theHdr, Just theRom) -> case Decode.decode (bytesToMemory theHdr.romsz) theRom of
-              Just memslice -> Chip16.initFrom memslice
-              _ -> Chip16.init
-            _ -> Chip16.init
+              Just memory -> Chip16.initFrom memory
+              _ -> Debug.todo "failed to parse bytes to memory!"
+            _ -> Debug.todo "failed to parse hdr/rom!"
         , tick = 0
         , rom = rom}
         , Cmd.none

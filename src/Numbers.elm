@@ -100,6 +100,7 @@ neg x =
   case x of
     I8 (Int8 v) -> I8 (Int8 (Bitwise.and (Bitwise.complement v + 1) 0xFF))
     I16 (Int16 v) -> I16 (Int16 (Bitwise.and (Bitwise.complement v + 1) 0xFFFF))
+    U16 (UInt16 v) -> neg (I16 (i16from (to x)))
     _ -> Debug.todo "no can do"
 
 sub : ChipInt -> ChipInt -> (ChipInt, Bool)
@@ -111,6 +112,9 @@ sub x y =
     (I16 (Int16 a), I16 (Int16 b), I16 (Int16 bneg)) ->
       case add_ a bneg 65536 of
         (res, _) -> (I16 (Int16 res), b > a)
+    (U16 (UInt16 a), U16 (UInt16 b), I16 (Int16 bneg)) ->
+      case add_ a bneg 65536 of
+        (res, _) -> (U16 (UInt16 res), b > a)
     _ -> Debug.todo "no can do yet"
 
 

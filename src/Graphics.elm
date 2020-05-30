@@ -1,4 +1,4 @@
-module Graphics exposing (Command(..), Graphics, Palette(..), produce, append)
+module Graphics exposing (Command(..), Graphics, Palette(..), produce, append, getColor)
 
 import Canvas exposing (Shape, Renderable, rect, shapes)
 import Canvas.Settings exposing (..)
@@ -25,6 +25,12 @@ extractColor col =
         b = and 0xFF col
     in
         Color.rgb255 r g b
+
+getColor : Int -> Palette -> Color
+getColor i (Palette pal) =
+  case Slice.get i pal of
+    Just color -> extractColor color
+    _ -> Color.red
 
 append : List (Command) -> Graphics -> Graphics
 append cmds g =

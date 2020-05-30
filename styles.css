@@ -18,3 +18,9 @@
     padding: 10px;
     margin-top: 10px;
 }
+
+#memory {
+    height: 480px;
+    overflow: auto;
+    width: 100%;
+}
