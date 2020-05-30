@@ -1,4 +1,4 @@
-module Graphics exposing (Command(..), Graphics, Palette(..), addPixel, produce)
+module Graphics exposing (Command(..), Graphics, Palette(..), produce, append)
 
 import Canvas exposing (Shape, Renderable, rect, shapes)
 import Canvas.Settings exposing (..)
@@ -26,10 +26,9 @@ extractColor col =
     in
         Color.rgb255 r g b
 
--- given a pixel coordinate, color index, and cmd list, append a new command
-addPixel : (Float, Float) -> Int -> List (Command) -> List(Command)
-addPixel pos color cmds =
-    Command pos color :: cmds
+append : List (Command) -> Graphics -> Graphics
+append cmds g =
+    { g | cmdbuffer = List.append g.cmdbuffer cmds }
 
 -- resolve colors and produce a final list of renderables
 -- TODO: could optimize by batching, but take it easy
@@ -44,4 +43,5 @@ produce cmds (Palette pal) =
     in
         List.map
             produce_cmd
-            (List.reverse cmds)
+            --(List.reverse cmds)
+            cmds

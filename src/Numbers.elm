@@ -1,7 +1,8 @@
 module Numbers exposing 
   ( Int8, Int16, UInt8, UInt16, ChipInt (..), Shift (..)
   , add, sub, neg, mul, div, mod, rem, and, or, xor, shl, shr, not
-  , buildLE, nibbleLO, nibbleHI
+  , add__, mul__, div__
+  , buildLE, nibbleLO, nibbleHI, unpackLE
   , i8from, i16from, u16from
   , to, tou16, toi16, tobits
   , isNeg, isPos, isZero, eq)
@@ -62,6 +63,11 @@ toi16 x =
     U8 (UInt8 v) -> (Int16 v)
     U16 (UInt16 v) -> (Int16 v)
 
+add__ : ChipInt -> ChipInt -> ChipInt
+add__ x y = 
+  case add x y of
+    (r, _) -> r
+
 add_ : Int -> Int -> Int -> (Int, Bool)
 add_ x y modulo =
   let
@@ -107,6 +113,12 @@ sub x y =
         (res, _) -> (I16 (Int16 res), b > a)
     _ -> Debug.todo "no can do yet"
 
+
+mul__ : ChipInt -> ChipInt -> ChipInt
+mul__ x y = 
+  case mul x y of
+    (r, _) -> r
+
 mul_ : Int -> Int -> Int -> (Int, Bool)
 mul_ x y modulo =
   let
@@ -126,6 +138,11 @@ mul x y =
       case mul_ a b 65536 of
         (res, carry) -> (I16 (Int16 res), carry)
     _ -> Debug.todo "no can do yet"
+
+div__ : ChipInt -> ChipInt -> ChipInt
+div__ x y = 
+  case div x y of
+    (r, _) -> r
 
 div_ : Int -> Int -> (Int, Bool)
 div_ x y =
@@ -233,6 +250,10 @@ eq x y = to x == to y
 
 buildLE : Int8 -> Int8 -> UInt16
 buildLE (Int8 low) (Int8 hi) = UInt16 (Bitwise.or (shiftLeftBy 8 hi) low)
+
+unpackLE : Int16 -> (Int8, Int8)
+unpackLE (Int16 val) =
+  (Int8 (Bitwise.and 0xFF val), Int8 (Bitwise.shiftRightZfBy 4 val)) -- LL, HH
 
 nibbleLO : Int8 -> Int8
 nibbleLO (Int8 b) = Int8 (Bitwise.and b 0xF)

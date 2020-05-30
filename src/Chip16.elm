@@ -842,29 +842,47 @@ opSpr machine w h =
   case Debug.log "sprite: " (w, h) of
     _ -> { machine | graphics = set_spritewh (to (I8 w)) (to (I8 h)) machine.graphics }
 
-drawRow : (Float, Float) -> UInt16 -> Chip16 -> Int -> List (Command) -> List (Command)
-drawRow (x, y) addr machine row j =
+drawRow : (Float, Float) -> UInt16 -> Chip16 -> Int -> List (Command)
+drawRow (x, y) addr machine row =
   let
-    idx i = Numbers.add (U16 (u16from i)) (Numbers.mul )
-  List.map
-    (\i -> case Memory.get )
+    row_offset = Numbers.mul__ (Numbers.div__ (U16 (u16from machine.graphics.spritew)) (U16 (u16from 2))) (U16 (u16from row))
+    idx i = case Numbers.add__ (U16 addr) (Numbers.add__ (U16 (u16from i)) row_offset) of
+      U16 v -> v
+      _ -> Debug.todo "oops"
+    pixelCoord i n = (x + toFloat i * 2 + n, y + toFloat (machine.graphics.spritew * row))
+    pixels i =
+      case Memory.get (idx i) machine.memory of
+        Just v ->
+          case Numbers.unpackLE v of
+            (ll, hh) -> [ Graphics.Command (pixelCoord i 0) (to (I8 ll)), Graphics.Command (pixelCoord i 1) (to (I8 hh)) ]
+        _ -> Debug.todo "oopse!"
+  in
+    List.concatMap
+      pixels
+      (List.range 1 (machine.graphics.spritew // 2)) -- assuming even sprite width (we don't have byte-addressable memory)
 
-drawSprite : (Float, Float) -> UInt16 -> Chip16 -> List (Command)
+drawSprite : (Float, Float) -> UInt16 -> Chip16 -> Chip16
 drawSprite (x, y) addr machine =
-  List.foldl
-    (drawRow (x, y) addr machine)
-    machine.graphics.cmdbuffer
-    (List.range 1 machine.graphics.spriteh)
+  let
+    cmds = 
+      List.concatMap
+        (drawRow (x, y) addr machine)
+        (List.range 0 (machine.graphics.spriteh - 1))
+  in
+    { machine | graphics = Graphics.append cmds machine.graphics }
 
 opDrwMem : Chip16 -> Int8 -> Int8 -> UInt16 -> Chip16
 opDrwMem machine rx ry hhll =
   case Debug.log "draw from literal: " (rx, ry) of
-    _ -> machine
+    _ -> drawSprite (toFloat (to (I8 rx)), toFloat (to (I8 ry))) hhll machine
 
 opDrwReg : Chip16 -> Int8 -> Int8 -> Int8 -> Chip16
 opDrwReg machine rx ry rz =
   case Debug.log "drawing from regs: " (rx, ry) of
-    _ -> machine
+    _ ->
+      case get_rx machine.cpu rz of 
+        Just addr -> drawSprite (toFloat (to (I8 rx)), toFloat (to (I8 ry))) (tou16 (I16 addr)) machine
+        _ -> Debug.todo "invalid address!"
 
 opRnd : Chip16 -> Int8 -> UInt16 -> Chip16
 opRnd machine rx hhll =
