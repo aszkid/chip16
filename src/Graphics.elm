@@ -45,7 +45,7 @@ produce cmds (Palette pal) =
         produce_cmd (Command (x, y) col) =
             case Slice.get col pal of
                 Just color -> shapes [ fill (extractColor color) ] [ rect (x * 2, y * 2) 2 2 ]
-                _ -> shapes [ fill Color.red ] [ rect (x * 2, y * 2) 2 2 ]
+                _ -> shapes [ fill Color.white ] [ rect (x * 2, y * 2) 2 2 ]
     in
         List.map
             produce_cmd
