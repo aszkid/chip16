@@ -243,7 +243,7 @@ inspector model =
                 case Memory.get (u16from (i * 2)) model.machine.memory of
                   Just v -> tr [] [ td [] [Html.text (toHex16 (to (U16 (u16from (i * 2)))))], td [] [Html.text (Hex.toString (to (U16 (Numbers.tou16 (I16 v)))))]]
                   _ -> tr [] [])
-              (List.range 0 800))
+              (List.range 0 100))
         ],
         div [id "stack", class "flex-fill"] [
           table [class "table table-sm"]
@@ -252,7 +252,7 @@ inspector model =
                 case Memory.get (u16from (0xFDF0 + i * 2)) model.machine.memory of
                   Just v -> tr [] [ td [] [Html.text (toHex16 (to (U16 (u16from (0xFDF0 + i * 2)))))], td [] [Html.text (Hex.toString (to (U16 (Numbers.tou16 (I16 v)))))]]
                   _ -> tr [] [])
-              (List.range 0 200))
+              (List.range 0 100))
         ]
       ]
     ]
@@ -269,10 +269,8 @@ screen model =
         , style "justify-content" "center"
         , style "align-items" "center"
         ]
-        [ Canvas.toHtml (width, height)
-            [ style "border" "1px solid black" ]
-            (shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: render model)
-            --(render model)
+        [ Canvas.toHtml (width, height) []
+          (shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: render model)
         ]
 render : Model -> List (Renderable)
 render model = Graphics.produce model.machine.graphics.cmdbuffer model.machine.graphics.palette
@@ -351,4 +349,4 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every 60 (\t -> Step 1000 False)
+  Time.every 30 (\t -> Step 10000 False)

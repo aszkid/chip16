@@ -845,8 +845,7 @@ opBgc machine n =
 
 opSpr : Chip16 -> Int8 -> Int8 -> Chip16
 opSpr machine w h =
-  case Debug.log "sprite: " (w, h) of
-    _ -> { machine | graphics = set_spritewh (to (I8 w)) (to (I8 h)) machine.graphics }
+  { machine | graphics = set_spritewh (to (I8 w)) (to (I8 h)) machine.graphics }
 
 drawRow : (Float, Float) -> UInt16 -> Chip16 -> Int -> List (Command)
 drawRow (x, y) addr machine row =
@@ -857,10 +856,9 @@ drawRow (x, y) addr machine row =
       case Memory.get8 (idx i) machine.memory of
         Just v ->
           case (nibbleLO v, nibbleHI v) of
-            (ll, hh) -> case Debug.log "pixel colors" (ll, hh) of
-              _ -> List.concat [
-                  if isZero (I8 ll) then [] else [ Graphics.Command (pixelCoord i 0) (to (I8 ll)) ],
-                  if isZero (I8 hh) then [] else [ Graphics.Command (pixelCoord i 1) (to (I8 hh)) ] ]
+            (ll, hh) -> List.concat [
+                  if isZero (I8 ll) then [] else [ Graphics.Command (pixelCoord i 1) (to (I8 ll)) ],
+                  if isZero (I8 hh) then [] else [ Graphics.Command (pixelCoord i 0) (to (I8 hh)) ] ]
         _ -> Debug.todo "oopse!"
   in
     List.concatMap
@@ -870,7 +868,6 @@ drawRow (x, y) addr machine row =
 drawSprite : (Float, Float) -> UInt16 -> Chip16 -> Chip16
 drawSprite (x, y) addr machine =
   let
-    _ = case Debug.log "drawing sprite at " (x, y) of _ -> Nothing
     cmds = 
       List.concatMap
         (drawRow (x, y) addr machine)
