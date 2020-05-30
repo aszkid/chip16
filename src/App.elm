@@ -90,18 +90,19 @@ instructionDecoder pc =
             _ -> Debug.todo "failed to decode isntruction")
           Decode.unsignedInt8))
 
-looper : Int -> (Int, Slice Int16) -> Decoder (Decode.Step (Int, Slice Int16) (Slice Int16))
-looper romsz (idx, slice) = 
-  if idx == romsz then
-    Decode.succeed (Decode.Done slice)
-  else
-    Decode.map (\v16 -> Decode.Loop (idx + 2, Slice.set idx (i16from v16) slice)) (Decode.unsignedInt16 LE)
-
 bytesToMemory : Int -> Decoder (Slice Int16)
 bytesToMemory romsz = 
-  Decode.loop
-    (0, Slice.new 65536 (i16from 0)) -- index, LL HH, result
-    (looper romsz)
+  let
+    looper : (Int, Slice Int16) -> Decoder (Decode.Step (Int, Slice Int16) (Slice Int16))
+    looper (idx, slice) = 
+      if idx == romsz then
+        Decode.succeed (Decode.Done slice)
+      else
+        Decode.map (\v16 -> Decode.Loop (idx + 2, Slice.set idx (i16from v16) slice)) (Decode.unsignedInt16 LE)
+  in
+    Decode.loop
+      (0, Slice.new 65536 (i16from 0))
+      looper
 
 type Msg
   = FileRequested
@@ -274,7 +275,7 @@ take_step model =
   in
     case prefetch model of
       Instruction a b c d ->
-        case Debug.log "Instruction: " (Hex.toString a ++ " " ++ Hex.toString b) of
+        case Debug.log "Instruction: " (Hex.toString a ++ " " ++ Hex.toString b ++ " " ++ Hex.toString c ++ " " ++ Hex.toString d) of
         _ -> { model
           | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
           , tick = if should_vblank then 0 else model.tick + 1
