@@ -851,21 +851,21 @@ opSpr machine w h =
 drawRow : (Float, Float) -> UInt16 -> Chip16 -> Int -> List (Command)
 drawRow (x, y) addr machine row =
   let
-    row_offset = row * machine.graphics.spritew
-    idx i = u16from (to (U16 addr) + row_offset + i)
-    pixelCoord i n = (x + toFloat i * 2 + n, y + toFloat (machine.graphics.spritew * row))
+    idx i = u16from (to (U16 addr) + row * machine.graphics.spritew + i)
+    pixelCoord i n = (x + toFloat i * 2 + n, y + toFloat row)
     pixels i =
-      case Memory.get (idx i) machine.memory of
+      case Memory.get8 (idx i) machine.memory of
         Just v ->
-          case Numbers.unpackLE v of
-            (ll, hh) -> List.concat [
-              if isZero (I8 ll) then [] else [ Graphics.Command (pixelCoord i 0) (to (I8 ll)) ],
-              if isZero (I8 hh) then [] else [ Graphics.Command (pixelCoord i 1) (to (I8 hh)) ] ]
+          case (nibbleLO v, nibbleHI v) of
+            (ll, hh) -> case Debug.log "pixel colors" (ll, hh) of
+              _ -> List.concat [
+                  if isZero (I8 ll) then [] else [ Graphics.Command (pixelCoord i 0) (to (I8 ll)) ],
+                  if isZero (I8 hh) then [] else [ Graphics.Command (pixelCoord i 1) (to (I8 hh)) ] ]
         _ -> Debug.todo "oopse!"
   in
     List.concatMap
       pixels
-      (List.range 1 machine.graphics.spritew)
+      (List.range 0 (machine.graphics.spritew-1))
 
 drawSprite : (Float, Float) -> UInt16 -> Chip16 -> Chip16
 drawSprite (x, y) addr machine =

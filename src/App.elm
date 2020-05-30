@@ -204,7 +204,7 @@ controls model =
         , button [ type_ "button", class "btn btn-danger", onClick (Running False) ] [ Html.text "Pause" ]
       ]
     ]
-    , div [id "info"] [
+    {--, div [id "info"] [
       Html.text ("File = " ++ Debug.toString model.file)
       , br [] []
       , Html.text ("Running: " ++ Debug.toString model.running ++ " | Tick: " ++ Debug.toString model.tick)
@@ -214,7 +214,7 @@ controls model =
       , Html.text ("Render commands: " ++ Debug.toString (List.length model.machine.graphics.cmdbuffer))
       , br [] []
       , Html.text ("Graphics state: " ++ Debug.toString model.machine.graphics)
-    ]
+    ]--}
   ]
 
 inspector : Model -> Html Msg
@@ -351,4 +351,4 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every 60 (\t -> Step 10000 False)
+  Time.every 60 (\t -> Step 1000 False)
