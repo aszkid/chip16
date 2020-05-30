@@ -842,6 +842,20 @@ opSpr machine w h =
   case Debug.log "sprite: " (w, h) of
     _ -> { machine | graphics = set_spritewh (to (I8 w)) (to (I8 h)) machine.graphics }
 
+drawRow : (Float, Float) -> UInt16 -> Chip16 -> Int -> List (Command) -> List (Command)
+drawRow (x, y) addr machine row j =
+  let
+    idx i = Numbers.add (U16 (u16from i)) (Numbers.mul )
+  List.map
+    (\i -> case Memory.get )
+
+drawSprite : (Float, Float) -> UInt16 -> Chip16 -> List (Command)
+drawSprite (x, y) addr machine =
+  List.foldl
+    (drawRow (x, y) addr machine)
+    machine.graphics.cmdbuffer
+    (List.range 1 machine.graphics.spriteh)
+
 opDrwMem : Chip16 -> Int8 -> Int8 -> UInt16 -> Chip16
 opDrwMem machine rx ry hhll =
   case Debug.log "draw from literal: " (rx, ry) of

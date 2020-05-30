@@ -1,4 +1,4 @@
-module Graphics exposing (Command, Graphics, Palette(..), addPixel, produce)
+module Graphics exposing (Command(..), Graphics, Palette(..), addPixel, produce)
 
 import Canvas exposing (Shape, Renderable, rect, shapes)
 import Canvas.Settings exposing (..)
