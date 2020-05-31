@@ -15,7 +15,7 @@ type alias Graphics =
   , spriteh : Int
   , hflip : Bool
   , vflip : Bool
-  , screen : Array Int }
+  , cmds : List Command }
 type Command = Command (Float, Float) Int
 
 initPalette : Palette
@@ -30,9 +30,6 @@ initPalette = Palette
     , 0x00467F, 0x68ABCC
     , 0xBCDEE4, 0xFFFFFF ])
 
-initScreen : Array Int
-initScreen = Array.repeat 76800 0
-
 initGraphics : Graphics
 initGraphics =
   { palette = initPalette
@@ -41,27 +38,11 @@ initGraphics =
   , spriteh = 0
   , hflip = False
   , vflip = False
-  , screen = initScreen }
-
+  , cmds = [] }
 
 putPixel : (Float, Float) -> Int -> Graphics -> Graphics
 putPixel (x, y) c g =
-  { g | screen = Array.set (round (x + y * 320)) c g.screen }
-
-produce : Graphics -> Array (Int)
-produce g =
-  let
-    pal = case g.palette of Palette p -> p
-    produce_cmd : Int -> Int
-    produce_cmd col =
-      if col == 0 then g.bg else
-        case Slice.get col pal of
-            Just color -> color
-            _ -> 0xfc0303 -- red
-  in
-    Array.map
-      produce_cmd
-      g.screen
+  { g | cmds = Command (x, y) c :: g.cmds }
 
 extractColor : Int -> Color
 extractColor col =
@@ -78,15 +59,11 @@ getColor i (Palette pal) =
     Just color -> extractColor color
     _ -> Color.red
 
-{--append : List (Command) -> Graphics -> Graphics
-append cmds g =
-    { g | cmdbuffer = List.append g.cmdbuffer cmds }--}
-
 -- resolve colors and produce a final list of renderables
--- TODO: could optimize by batching, but take it easy
-{--produce : List (Command) -> Palette -> List (Renderable)
-produce cmds (Palette pal) =
+produce : Graphics -> List (Renderable)
+produce gfx =
     let
+        pal = case gfx.palette of (Palette p) -> p
         produce_cmd : Command -> Renderable
         produce_cmd (Command (x, y) col) =
             case Slice.get col pal of
@@ -95,9 +72,9 @@ produce cmds (Palette pal) =
     in
         List.map
             produce_cmd
-            --(List.reverse cmds)
-            cmds--}
+            (List.reverse gfx.cmds)
+            --cmds
 
 clear : Graphics -> Graphics
 clear g =
-  { g | screen = initScreen }
+  { g | cmds = [] }
