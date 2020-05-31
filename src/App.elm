@@ -66,7 +66,7 @@ headerDecoder =
       3 -> Decode.map (\st -> Decode.Loop (4, { hdr | start = st })) (Decode.unsignedInt16 LE)
       4 -> Decode.map (\ck -> Decode.Loop (5, { hdr | checksum = ck})) (Decode.unsignedInt32 LE)
       5 -> Decode.succeed (Decode.Done hdr)
-      _ -> Debug.todo "invalid decoder state"
+      _ -> Decode.fail
   in
     Decode.loop (0, headerInit) stepfn
 
@@ -88,7 +88,7 @@ instructionDecoder pc =
             1 -> Decode.Loop (2, Instruction a byte 0 0)
             2 -> Decode.Loop (3, Instruction a b byte 0)
             3 -> Decode.Loop (4, Instruction a b c byte)
-            _ -> Debug.todo "failed to decode isntruction")
+            _ -> Decode.Loop (0, Instruction 0 0 0 0))
           Decode.unsignedInt8))
 
 bytesToMemory : Int -> Decoder Memory
@@ -304,7 +304,7 @@ setKey key acc =
     Keyboard.Character "B" -> set Chip16.B
     Keyboard.Shift -> set Chip16.Select
     Keyboard.Enter -> set Chip16.Start
-    _ -> Debug.todo "fooo"
+    _ -> i16from -1
 
 take_step : Model -> Model
 take_step model =
@@ -362,8 +362,8 @@ update msg model =
         , machine = case (hdr, rom) of
             (Just theHdr, Just theRom) -> case Decode.decode (bytesToMemory theHdr.romsz) theRom of
               Just memory -> Chip16.initFrom memory
-              _ -> Debug.todo "failed to parse bytes to memory!"
-            _ -> Debug.todo "failed to parse hdr/rom!"
+              _ -> Chip16.init
+            _ -> Chip16.init
         , tick = 0
         , rom = rom}
         , Cmd.none

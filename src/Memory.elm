@@ -18,7 +18,7 @@ get : Number U16 -> Memory -> Maybe (Number I16)
 get addr memory = 
   case (get8 addr memory, get8 (Numbers.add addr (u16from 1)) memory) of
     (Just ll, Just hh) -> Just (Numbers.i16build ll hh)
-    _ -> Debug.todo "invalid address!"
+    _ -> Nothing
 
 set8 : Number U16 -> Number I8 -> Memory -> Memory
 set8 addr val (Memory slice) = Memory (Slice.set (to addr) val slice)

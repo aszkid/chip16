@@ -163,7 +163,7 @@ opLoad_RegMem : Chip16 -> Number I8 -> Number U16 -> Chip16
 opLoad_RegMem machine rx addr =
   case Memory.get addr machine.memory of
     Just val -> { machine | cpu = set_rx machine.cpu rx val }
-    _ -> Debug.todo ("invalid memory address: " ++ (Debug.toString addr))
+    _ -> machine
 
 opLoad_RegReg : Chip16 -> Number I8 -> Number I8 -> Chip16
 opLoad_RegReg machine rx ry =
@@ -171,26 +171,26 @@ opLoad_RegReg machine rx ry =
     Just addr ->
       case Memory.get (intou16 addr) machine.memory of
         Just val -> { machine | cpu = set_rx machine.cpu rx val }
-        _ -> Debug.todo "invalid memory address"
-    _ -> Debug.todo "invalid register"
+        _ -> machine
+    _ -> machine
 
 opMov : Chip16 -> Number I8 -> Number I8 -> Chip16
 opMov machine rx ry =
   case get_rx machine.cpu ry of
     Just val -> { machine | cpu = set_rx machine.cpu rx val }
-    _ -> Debug.todo ("invalid register: " ++ (Debug.toString ry))
+    _ -> machine
 
 opStore_Imm : Chip16 -> Number I8 -> Number U16 -> Chip16
 opStore_Imm machine rx addr =
   case get_rx machine.cpu rx of
     Just val -> { machine | memory = Memory.set addr val machine.memory }
-    _ -> Debug.todo ("invalid register: " ++ (Debug.toString rx))
+    _ -> machine
 
 opStore_Reg : Chip16 -> Number I8 -> Number I8 -> Chip16
 opStore_Reg machine rx ry =
   case get_rx2 machine.cpu rx ry of
     Just (val, addr) -> { machine | memory = Memory.set (intou16 addr) val machine.memory }
-    _ -> Debug.todo ("invalid register: " ++ (Debug.toString ry))
+    _ -> machine
 
 opAddi : Chip16 -> Number I8 -> Number I16 -> Chip16
 opAddi machine rx val =
@@ -198,7 +198,7 @@ opAddi machine rx val =
     Just vrx ->
       case add vrx val machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ ->  Debug.todo ("invalid register: " ++ (Debug.toString rx))
+    _ -> machine
 
 opAdd2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opAdd2 machine rx ry =
@@ -206,7 +206,7 @@ opAdd2 machine rx ry =
     Just (vx, vy) ->
       case add vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ ->  Debug.todo "invalid registers"
+    _ -> machine
 
 opAdd3 : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opAdd3 machine rx ry rz =
@@ -214,7 +214,7 @@ opAdd3 machine rx ry rz =
     Just (vx, vy) ->
       case add vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    _ ->  Debug.todo "invalid registers"
+    _ -> machine
 
 
 opSubi : Chip16 -> Number I8 -> Number I16 -> Chip16
@@ -223,7 +223,7 @@ opSubi machine rx hhll =
     Just vx ->
       case sub vx hhll machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register rx"
+    _ -> machine
 
 opSub2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opSub2 machine rx ry =
@@ -231,7 +231,7 @@ opSub2 machine rx ry =
     Just (vx, vy) ->
       case sub vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid registers"
+    _ -> machine
 
 opSub3 : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opSub3 machine rx ry rz =
@@ -239,7 +239,7 @@ opSub3 machine rx ry rz =
     Just (vx, vy) ->
       case sub vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    _ -> Debug.todo "invalid regsiters"
+    _ -> machine
 
 opCmpi : Chip16 -> Number I8 -> Number I16 -> Chip16
 opCmpi machine rx hhll =
@@ -247,7 +247,7 @@ opCmpi machine rx hhll =
     Just vx ->
       case sub vx hhll machine.cpu of
         (_, cpu) -> { machine | cpu = cpu }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opCmp : Chip16 -> Number I8 -> Number I8 -> Chip16
 opCmp machine rx ry =
@@ -255,7 +255,7 @@ opCmp machine rx ry =
     Just (vx, vy) ->
       case sub vx vy machine.cpu of
         (_, cpu) -> { machine | cpu = cpu }
-    _ -> Debug.todo "invalid registers"
+    _ -> machine
 
 and : Number I16 -> Number I16 -> Cpu -> (Number I16, Cpu)
 and x y cpu =
@@ -271,7 +271,7 @@ opAndi machine rx hhll =
     Just vx ->
       case and vx hhll machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opAnd2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opAnd2 machine rx ry = 
@@ -279,7 +279,7 @@ opAnd2 machine rx ry =
     Just (vx, vy) ->
       case and vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opAnd3 : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opAnd3 machine rx ry rz =
@@ -287,7 +287,7 @@ opAnd3 machine rx ry rz =
     Just (vx, vy) ->
       case and vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    _ -> Debug.todo "invalid registers"
+    _ -> machine
 
 opTsti : Chip16 -> Number I8 -> Number I16 -> Chip16
 opTsti machine rx hhll = 
@@ -295,7 +295,7 @@ opTsti machine rx hhll =
     Just vx ->
       case and vx hhll machine.cpu of
         (_, cpu) -> { machine | cpu = cpu }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opTst : Chip16 -> Number I8 -> Number I8 -> Chip16
 opTst machine rx ry = 
@@ -303,7 +303,7 @@ opTst machine rx ry =
     Just (vx, vy) ->
       case and vx vy machine.cpu of
         (_, cpu) -> { machine | cpu = cpu }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 or : Number I16 -> Number I16 -> Cpu -> (Number I16, Cpu)
 or x y cpu =
@@ -319,7 +319,7 @@ opOri machine rx hhll =
     Just vx ->
       case or vx hhll machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opOr2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opOr2 machine rx ry = 
@@ -327,7 +327,7 @@ opOr2 machine rx ry =
     Just (vx, vy) ->
       case or vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opOr3 : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opOr3 machine rx ry rz = 
@@ -335,7 +335,7 @@ opOr3 machine rx ry rz =
     Just (vx, vy) ->
       case or vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 xor : Number I16 -> Number I16 -> Cpu -> (Number I16, Cpu)
 xor x y cpu =
@@ -351,7 +351,7 @@ opXori machine rx hhll =
     Just vx ->
       case xor vx hhll machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opXor2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opXor2 machine rx ry = 
@@ -359,7 +359,7 @@ opXor2 machine rx ry =
     Just (vx, vy) ->
       case xor vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opXor3 : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opXor3 machine rx ry rz = 
@@ -367,7 +367,7 @@ opXor3 machine rx ry rz =
     Just (vx, vy) ->
       case xor vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 
 {-- given two numbers and a CPU, multiply them
@@ -386,7 +386,7 @@ opMuli machine rx hhll =
     Just vx ->
       case mul vx hhll machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opMul2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opMul2 machine rx ry = 
@@ -394,7 +394,7 @@ opMul2 machine rx ry =
     Just (vx, vy) ->
       case mul vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opMul3 : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opMul3 machine rx ry rz = 
@@ -402,7 +402,7 @@ opMul3 machine rx ry rz =
     Just (vx, vy) ->
       case mul vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 {-- given two numbers and a CPU, divide them
     and return the result and a new CPU with updated flags --}
@@ -420,7 +420,7 @@ opDivi machine rx hhll =
     Just vx ->
       case div vx hhll machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opDiv2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opDiv2 machine rx ry = 
@@ -428,7 +428,7 @@ opDiv2 machine rx ry =
     Just (vx, vy) ->
       case div vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opDiv3 : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opDiv3 machine rx ry rz = 
@@ -436,7 +436,7 @@ opDiv3 machine rx ry rz =
     Just (vx, vy) ->
       case div vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 {-- given two numbers and a CPU, take the first modulo the second
     returning the result and a new CPU with updated flags --}
@@ -454,7 +454,7 @@ opModi machine rx hhll =
     Just vx ->
       case mod vx hhll machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opMod2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opMod2 machine rx ry = 
@@ -462,7 +462,7 @@ opMod2 machine rx ry =
     Just (vx, vy) ->
       case mod vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opMod3 : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opMod3 machine rx ry rz = 
@@ -470,7 +470,7 @@ opMod3 machine rx ry rz =
     Just (vx, vy) ->
       case mod vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 {-- given two numbers and a CPU, take the remainder of the first
     divided by the second, returning the result and a new CPU with updated flags --}
@@ -488,7 +488,7 @@ opRemi machine rx hhll =
     Just vx ->
       case rem vx hhll machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opRem2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opRem2 machine rx ry = 
@@ -496,7 +496,7 @@ opRem2 machine rx ry =
     Just (vx, vy) ->
       case rem vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opRem3 : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opRem3 machine rx ry rz = 
@@ -504,7 +504,7 @@ opRem3 machine rx ry rz =
     Just (vx, vy) ->
       case rem vx vy machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rz res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 type Dir = ShiftLeft | ShiftRight
 shift : Number I16 -> Number I16 -> Dir -> Numbers.Shift -> Cpu -> (Number I16, Cpu)
@@ -524,7 +524,7 @@ opShli machine rx n =
     Just vx ->
       case shift vx n ShiftLeft ShiftLogical machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opShri : Chip16 -> Number I8 -> Number I16 -> Chip16
 opShri machine rx n = 
@@ -532,7 +532,7 @@ opShri machine rx n =
     Just vx ->
       case shift vx n ShiftRight ShiftLogical machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opSari : Chip16 -> Number I8 -> Number I16 -> Chip16
 opSari machine rx n = 
@@ -540,7 +540,7 @@ opSari machine rx n =
     Just vx ->
       case shift vx n ShiftRight ShiftArithmetic machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opShl2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opShl2 machine rx ry = 
@@ -548,7 +548,7 @@ opShl2 machine rx ry =
     Just (vx, vy) ->
       case shift vx vy ShiftLeft ShiftLogical machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid registers"
+    _ -> machine
 
 opShr2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opShr2 machine rx ry = 
@@ -556,7 +556,7 @@ opShr2 machine rx ry =
     Just (vx, vy) ->
       case shift vx vy ShiftRight ShiftLogical machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid registers"
+    _ -> machine
 
 opSar2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opSar2 machine rx ry = 
@@ -564,7 +564,7 @@ opSar2 machine rx ry =
     Just (vx, vy) ->
       case shift vx vy ShiftRight ShiftArithmetic machine.cpu of
         (res, cpu) -> { machine | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid registers"
+    _ -> machine
 
 opPush : Chip16 -> Number I8 -> Chip16
 opPush machine rx =
@@ -575,7 +575,7 @@ opPush machine rx =
       Just vx -> { machine
                 | memory = Memory.set machine.cpu.sp vx machine.memory
                 , cpu = set_sp machine.cpu new_sp }
-      _ -> Debug.todo "invalid register"
+      _ -> machine
 
 opPop : Chip16 -> Number I8 -> Chip16
 opPop machine rx = 
@@ -584,7 +584,7 @@ opPop machine rx =
     cpu = set_sp machine.cpu new_sp
     val = case Memory.get new_sp machine.memory of
       Just v -> v
-      _ -> Debug.todo "invalid address at sp"
+      _ -> i16from -1
   in
     { machine
     | cpu = set_rx cpu rx val }
@@ -598,7 +598,7 @@ opPushAll machine =
     setter rx mem =
       case get_rx machine.cpu (i8from rx) of
         Just vx -> Memory.set (adder rx) vx mem
-        _ -> Debug.todo "reg get failed"
+        _ -> mem
     theMemory =
       List.foldl
         setter
@@ -620,7 +620,7 @@ opPopAll machine =
     setter rx cpu_ =
       case Memory.get (adder rx) machine.memory of
         Just vx -> set_rx cpu_ (i8from rx) vx
-        _ -> Debug.todo "mem get failed"
+        _ -> cpu_
     theCpu =
       List.foldl
         setter
@@ -664,7 +664,7 @@ loadPal machine addr =
     List.foldl
       (\i mch -> case Memory.get (u16from (adder i)) machine.memory of
         Just color -> set mch i (bits color)
-        _ -> Debug.todo "address does not exist!")
+        _ -> machine)
       machine
       (List.range 0 15)
 
@@ -675,7 +675,7 @@ opPalReg : Chip16 -> Number I8 -> Chip16
 opPalReg machine rx =
   case get_rx machine.cpu rx of
     Just addr -> loadPal machine (intou16 addr)
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 not : Number I16 -> Cpu -> (Number I16, Cpu)
 not v cpu = 
@@ -706,7 +706,7 @@ opNot1 machine rx =
       case not vx machine.cpu of
         (res, cpu) -> { machine
                       | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opNot2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opNot2 machine rx ry =
@@ -715,7 +715,7 @@ opNot2 machine rx ry =
       case not vy machine.cpu of
         (res, cpu) -> { machine
                       | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opNegi : Chip16 -> Number I8 -> Number I16 -> Chip16
 opNegi machine rx hhll = 
@@ -730,7 +730,7 @@ opNeg1 machine rx =
       case neg vx machine.cpu of
         (res, cpu) -> { machine
                       | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opNeg2 : Chip16 -> Number I8 -> Number I8 -> Chip16
 opNeg2 machine rx ry = 
@@ -739,7 +739,7 @@ opNeg2 machine rx ry =
       case neg vy machine.cpu of
         (res, cpu) -> { machine
                       | cpu = set_rx cpu rx res }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 
 opCls : Chip16 -> Chip16
@@ -769,7 +769,7 @@ drawRow (x, y) addr machine row gfx =
         Just v ->
           case nibbles v of
             (ll, hh) -> (put i ll 1 (put i hh 0 theGfx))
-        _ -> Debug.todo "oopse!"
+        _ -> theGfx
   in
     List.foldl
       (\i -> putPixels i)
@@ -791,13 +791,13 @@ opDrwMem : Chip16 -> Number I8 -> Number I8 -> Number U16 -> Chip16
 opDrwMem machine rx ry hhll =
   case get_rx2 machine.cpu rx ry of
     Just (x, y) -> drawSprite (toFloat (to x), toFloat (to y)) hhll machine
-    _ -> Debug.todo "failed to draw"
+    _ -> machine
 
 opDrwReg : Chip16 -> Number I8 -> Number I8 -> Number I8 -> Chip16
 opDrwReg machine rx ry rz =
     case get_rx3 machine.cpu rx ry rz of
       Just (x, y, addr) -> drawSprite (toFloat (to x), toFloat (to y)) (intou16 addr) machine
-      _ -> Debug.todo "invalid address!"
+      _ -> machine
 
 opRnd : Chip16 -> Number I8 -> Number U16 -> Chip16
 opRnd machine rx hhll =
@@ -845,7 +845,7 @@ shouldJump x fs =
     0xC -> fs.overflow == fs.negative
     0xD -> fs.overflow /=  fs.negative
     0xE -> (fs.overflow /= fs.negative) || fs.zero
-    _ -> Debug.todo "invalid branch type"
+    _ -> False
 
 opJx : Chip16 -> Number I8 -> Number U16 -> Chip16
 opJx machine x hhll =
@@ -862,7 +862,7 @@ opJme machine rx ry hhll =
         { machine | cpu = set_pc machine.cpu hhll }
       else
         machine
-    _ -> Debug.todo "invalid registers"
+    _ -> machine
 
 opCalli : Chip16 -> Number U16 -> Chip16
 opCalli machine hhll =
@@ -880,7 +880,7 @@ opRet machine =
     newsp = Numbers.sub machine.cpu.sp (u16from 2)
     spval = case Memory.get newsp machine.memory of
       Just val -> intou16 val
-      _ -> Debug.todo "invalid address in SP"
+      _ -> u16from 0xFFFF
   in
     { machine
     | cpu = set_sp (set_pc machine.cpu spval) newsp }
@@ -889,7 +889,7 @@ opJmp : Chip16 -> Number I8 -> Chip16
 opJmp machine rx =
   case get_rx machine.cpu rx of
     Just vx -> { machine | cpu = set_pc machine.cpu (intou16 vx) }
-    _ -> Debug.todo "invalid register"
+    _ -> machine
 
 opCx : Chip16 -> Number I8 -> Number U16 -> Chip16
 opCx machine x hhll =
@@ -908,7 +908,7 @@ opCall machine rx =
       Just vx -> { machine
                  | memory = mem
                  , cpu = set_sp (set_pc machine.cpu (intou16 vx)) newsp }
-      _ -> Debug.todo "invalid register"
+      _ -> machine
 
 type Key = Up | Down | Left | Right | A | B | Select | Start
 
@@ -936,7 +936,7 @@ getController : Chip16 -> Number I16
 getController machine =
   case Memory.get controllerAddr machine.memory of
     Just v -> v
-    _ -> Debug.todo "impossible"
+    _ -> i16from -1
 
 
 -- attempt to dispatch an instruction from 4 bytes
@@ -1065,4 +1065,4 @@ dispatch machine_ vblank a b c d =
       0xE3 -> opNegi machine rx imm
       0xE4 -> opNeg1 machine rx
       0xE5 -> opNeg2 machine rx ry
-      _ -> Debug.todo ("instruction `" ++  Debug.toString (to a) ++ " ` does not exist!")
+      _ -> machine
