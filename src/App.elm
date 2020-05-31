@@ -1,6 +1,6 @@
 module App exposing (main)
 import Chip16 exposing (Chip16)
-import Numbers2 exposing (u16from, i16from, i8from, to, bits)
+import Numbers2 as Numbers exposing (Number, I16, u16from, i16from, i8from, to, bits)
 import Slice
 import Html exposing (Html, table, tr, td, b, div, button, br, h1)
 import Html.Attributes exposing (id, class, type_, style)
@@ -19,6 +19,7 @@ import Canvas.Settings exposing (fill)
 import Color
 import Graphics
 import Memory exposing (Memory)
+import Keyboard exposing (Key)
 
 main : Program Flags Model Msg
 main = 
@@ -39,6 +40,7 @@ type alias Model =
   , running : Bool
   , tick : Int
   , screen : List (Renderable)
+  , pressedKeys : List Key
   }
 
 type alias Header =
@@ -114,6 +116,7 @@ type Msg
   | Step Int Bool
   | Running Bool
   | Reset
+  | KeyMsg Keyboard.Msg
 
 type alias Flags = ()
 
@@ -128,6 +131,7 @@ initModel =
   , running = False
   , tick = 0
   , screen = []
+  , pressedKeys = []
   }
 
 init : Flags -> (Model, Cmd Msg)
@@ -288,15 +292,41 @@ view model =
     , controls model
     ]
 
+setKey : Keyboard.Key -> Number I16 -> Number I16
+setKey key acc =
+  let
+    mask i = Numbers.shl (i16from 1) (i16from i)
+    set ki = Numbers.or acc (Chip16.keyMap ki |> mask)
+  in
+  case key of
+    Keyboard.ArrowUp -> set Chip16.Up
+    Keyboard.ArrowDown -> set Chip16.Down
+    Keyboard.ArrowLeft -> set Chip16.Left
+    Keyboard.ArrowRight -> set Chip16.Right
+    Keyboard.Character "A" -> set Chip16.A
+    Keyboard.Character "B" -> set Chip16.B
+    Keyboard.Shift -> set Chip16.Select
+    Keyboard.Enter -> set Chip16.Start
+    _ -> Debug.todo "fooo"
+
 take_step : Model -> Model
 take_step model =
   let
     should_vblank = model.tick >= 16666
+    controller = if should_vblank then
+      Just (List.foldl
+        setKey
+        (i16from 0)
+        model.pressedKeys)
+      else Nothing
+    machine = case controller of
+      Just c -> Chip16.setController c model.machine
+      Nothing -> model.machine
   in
     case prefetch model of
       Instruction a b c d ->
         { model
-        | machine = Chip16.dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
+        | machine = Chip16.dispatch machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
         , tick = if should_vblank then 0 else model.tick + 1
         , screen = if should_vblank then List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) 640 480 ]], render model ] else model.screen }
 
@@ -345,7 +375,11 @@ update msg model =
     Step n force -> if model.running || force then (steps n model, Cmd.none) else (model, Cmd.none)
     Running b -> ({ model | running = b }, Cmd.none)
     Reset -> ({ model | machine = Chip16.init, tick = 0 }, Cmd.none)
+    KeyMsg keyMsg -> ({ model | pressedKeys = Keyboard.update keyMsg model.pressedKeys }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every 30 (\t -> Step 10000 False)
+  Sub.batch
+    [ Time.every 30 (\t -> Step 10000 False)
+    , Sub.map KeyMsg Keyboard.subscriptions
+    ]

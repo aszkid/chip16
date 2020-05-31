@@ -1,4 +1,4 @@
-module Chip16 exposing (Chip16, init, initFrom, dispatch, keyUp, keyDown, Key(..))
+module Chip16 exposing (Chip16, init, initFrom, dispatch, keyMap, Key(..), setController, getController)
 
 --import Numbers exposing (..)
 import Numbers2 as Numbers exposing (..)
@@ -923,21 +923,15 @@ keyMap k =
 controllerAddr : Number U16
 controllerAddr = u16from 0xFFF0
 
-keyMask i = Numbers.shl (i16from 1) (i16from i)
-keyValue memory =
-  case Memory.get controllerAddr memory of
+setController : Number I16 -> Chip16 -> Chip16
+setController v machine = 
+  { machine | memory = Memory.set controllerAddr v machine.memory }
+
+getController : Chip16 -> Number I16
+getController machine =
+  case Memory.get controllerAddr machine.memory of
     Just v -> v
     _ -> Debug.todo "impossible"
-
-keyDown : Memory -> Key -> Memory
-keyDown memory k =
-  case keyMap k of
-    i -> Memory.set controllerAddr (Numbers.or (keyValue memory) (keyMask i)) memory
-    
-keyUp : Memory -> Key -> Memory
-keyUp memory k =
-  case keyMap k of
-    i -> Memory.set controllerAddr (Numbers.and (keyValue memory) (Numbers.not (keyMask i))) memory
 
 
 -- attempt to dispatch an instruction from 4 bytes
