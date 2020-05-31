@@ -1,7 +1,6 @@
 module App exposing (main)
 import Chip16 exposing (..)
---import Numbers exposing (Int8, Int16, ChipInt(..), to, i8from, i16from, u16from)
-import Numbers2 as Numbers exposing (u16from, i16from, i8from, to)
+import Numbers2 as Numbers exposing (u16from, i16from, i8from, to, bits)
 import Slice exposing (Slice, get)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -159,7 +158,7 @@ toHex16 v =
 get_rx : Model -> Int -> String
 get_rx model i =
   case Slice.get i model.machine.cpu.regs of
-    Just val -> "0x" ++ toHex16 (to val)
+    Just val -> "0x" ++ toHex16 (bits val)
     _ -> "0x0000"
 
 regs_table : Model -> Html Msg
@@ -242,7 +241,7 @@ inspector model =
             (List.map
               (\i ->
                 case Memory.get (u16from (i * 2)) model.machine.memory of
-                  Just v -> tr [] [ td [] [Html.text (toHex16 (i * 2))], td [] [Html.text (Hex.toString (to v))]]
+                  Just v -> tr [] [ td [] [Html.text (toHex16 (i * 2))], td [] [Html.text (Hex.toString (bits v))]]
                   _ -> tr [] [])
               (List.range 0 100))
         ],
@@ -251,7 +250,7 @@ inspector model =
             (List.map
               (\i ->
                 case Memory.get (u16from (0xFDF0 + i * 2)) model.machine.memory of
-                  Just v -> tr [] [ td [] [Html.text (toHex16 (0xFDF0 + i * 2))], td [] [Html.text (Hex.toString (to v))]]
+                  Just v -> tr [] [ td [] [Html.text (toHex16 (0xFDF0 + i * 2))], td [] [Html.text (Hex.toString (bits v))]]
                   _ -> tr [] [])
               (List.range 0 100))
         ]
