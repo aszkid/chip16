@@ -309,7 +309,7 @@ setKey key acc =
 take_step : Model -> Model
 take_step model =
   let
-    should_vblank = model.tick >= 16666
+    should_vblank = model.tick >= 1666
     controller = if should_vblank then
       Just (List.foldl
         setKey
@@ -376,6 +376,6 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
-    [ Time.every 60 (\t -> Step 16666 False)
+    [ Time.every 60 (\t -> Step 1666 False)
     , Sub.map KeyMsg Keyboard.subscriptions
     ]
