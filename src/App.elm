@@ -380,6 +380,6 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
-    [ Time.every 30 (\t -> Step 10000 False)
+    [ Time.every 60 (\t -> Step 16666 False)
     , Sub.map KeyMsg Keyboard.subscriptions
     ]
