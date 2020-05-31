@@ -4,7 +4,8 @@ module Numbers2 exposing
   , to
   , u8from, u16from, i8from, i16from
   , intou8, intou16, intoi8, intoi16
-  , add, addC)
+  , add, addC, neg, sub, subC, mul, mulC, div, divC, mod, rem
+  )--, and, or, xor, shl, shr, not )
 
 import Bitwise
 
@@ -20,7 +21,9 @@ type I16 = I16 Int
 type alias NumberI a = 
   { into : a -> Int
   , from : Int -> a
-  , carry : a -> a -> Bool }
+  , carry : a -> a -> (Int -> Int -> Int) -> Bool
+  , neg : a -> a
+  , borrow : a -> a -> Bool }
 type Number a = Number (NumberI a) a
 
 to : Number a -> Int
@@ -37,7 +40,9 @@ u8interface : NumberI U8
 u8interface =
   { into = \(U8 v) -> v
   , from = \i -> U8 (Bitwise.and 0xFF i)
-  , carry = \(U8 va) (U8 vb) -> (va + vb) > 255 }
+  , carry = \(U8 va) (U8 vb) op -> op va vb > 255
+  , neg = \(U8 v) -> U8 (Bitwise.and (Bitwise.complement v + 1) 0xFF)
+  , borrow = \(U8 va) (U8 vb) -> vb > va }
 
 u8from : Int -> Number U8
 u8from = from u8interface
@@ -49,7 +54,9 @@ u16interface : NumberI U16
 u16interface =
   { into = \(U16 v) -> v
   , from = \i -> U16 (Bitwise.and 0xFFFF i)
-  , carry = \(U16 va) (U16 vb) -> (va + vb) > 65535 }
+  , carry = \(U16 va) (U16 vb) op -> op va vb > 65535
+  , neg = \(U16 v) -> U16 (Bitwise.and (Bitwise.complement v + 1) 0xFFFF)
+  , borrow = \(U16 va) (U16 vb) -> vb > va }
 
 u16from : Int -> Number U16
 u16from = from u16interface
@@ -61,7 +68,9 @@ i8interface : NumberI I8
 i8interface = 
   { into = \(I8 v) -> Bitwise.and 0x7F v + -1 * Bitwise.and 0x80 v
   , from = \i -> I8 (Bitwise.and 0xFF i)
-  , carry = \(I8 va) (I8 vb) -> (va + vb) > 255 }
+  , carry = \(I8 va) (I8 vb) op -> op va vb > 255
+  , neg = \(I8 v) -> I8 (Bitwise.and (Bitwise.complement v + 1) 0xFF)
+  , borrow = \(I8 va) (I8 vb) -> vb > va }
 
 i8from : Int -> Number I8
 i8from = from i8interface
@@ -73,7 +82,9 @@ i16interface : NumberI I16
 i16interface = 
   { into = \(I16 v) -> Bitwise.and 0x7FFF v + -1 * Bitwise.and 0x8000 v
   , from = \i -> I16 (Bitwise.and 0xFFFF i)
-  , carry = \(I16 va) (I16 vb) -> (va + vb) > 65535 }
+  , carry = \(I16 va) (I16 vb) op -> op va vb > 65535
+  , neg = \(I16 v) -> I16 (Bitwise.and (Bitwise.complement v + 1) 0xFFFF)
+  , borrow = \(I16 va) (I16 vb) -> vb > va }
 
 i16from : Int -> Number I16
 i16from = from i16interface
@@ -86,10 +97,45 @@ intoi16 (Number intfa va) = intfa.into va |> i16from
 ------------------------------------------------------------------
 
 add : Number a -> Number a -> Number a
-add (Number intf va) (Number _ vb) =
-  Number intf (intf.from (intf.into va + intf.into vb))
+add (Number intf va) (Number _ vb) = Number intf (intf.from (intf.into va + intf.into vb))
 
 addC : Number a -> Number a -> (Number a, Bool)
 addC x y =
   case (x, y) of
-    (Number intf va, Number _ vb) -> (add x y, intf.carry va vb)
+    (Number intf va, Number _ vb) -> (add x y, intf.carry va vb (+))
+
+neg : Number a -> Number a
+neg (Number intf v) = Number intf (intf.neg v)
+
+sub : Number a -> Number a -> Number a
+sub x (Number intf y) = add x (Number intf (intf.neg y))
+
+subC : Number a -> Number a -> (Number a, Bool)
+subC x y =
+  case (x, y) of
+    (Number intf vx, Number _ vy) -> (sub x y, intf.borrow vx vy)
+
+mul : Number a -> Number a -> Number a
+mul (Number intf va) (Number _ vb) = Number intf (intf.from (intf.into va * intf.into vb))
+
+mulC : Number a -> Number a -> (Number a, Bool)
+mulC x y =
+  case (x, y) of
+    (Number intf vx, Number _ vy) -> (mul x y, intf.carry vx vy (*))
+
+div : Number a -> Number a -> Number a
+div (Number intf va) (Number _ vb) = Number intf (intf.from (intf.into va // intf.into vb))
+
+divC : Number a -> Number a -> (Number a, Bool)
+divC x y =
+  let
+    res = mul x y
+  in
+    case (x, y) of
+        (Number intf vx, Number _ vy) -> (res, remainderBy (intf.into vy) (intf.into vx) /= 0)
+
+mod : Number a -> Number a -> Number a
+mod (Number intf va) (Number _ vb) = Number intf (intf.from (modBy (intf.into vb) (intf.into va)))
+
+rem : Number a -> Number a -> Number a
+rem (Number intf va) (Number _ vb) = Number intf (intf.from (remainderBy (intf.into vb) (intf.into va)))
