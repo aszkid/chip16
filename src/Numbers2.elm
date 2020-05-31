@@ -4,7 +4,7 @@ module Numbers2 exposing
   , to, bits
   , u8from, u16from, i8from, i16from
   , intou8, intou16, intoi8, intoi16
-  , i16build, u16build, nibbles, isZero, isPos, isNeg, eq
+  , unpacki16, i16build, u16build, nibbles, isZero, isPos, isNeg, eq
   , add, addC, neg, sub, subC, mul, mulC, div, divC, mod, rem
   , and, or, xor, Shift(..), shl, shr, not )
 
@@ -187,6 +187,9 @@ not (Number intf v) = Number intf (intf.from (Bitwise.complement (intf.bits v)))
 
 u16build : Number I8 -> Number I8 -> Number U16
 u16build (Number intf low) (Number _ hi) = u16from (Bitwise.or (intf.bits low) (Bitwise.shiftLeftBy 8 (intf.bits hi)))
+
+unpacki16 : Number I16 -> (Number I8, Number I8)
+unpacki16 v = (intoi8 (and v (i16from 0xFF)), intoi8 (and (shr v (i16from 8) ShiftLogical) (i16from 0xFF)))
 
 i16build : Number I8 -> Number I8 -> Number I16
 i16build lo hi = intoi16 (u16build lo hi)
