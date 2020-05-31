@@ -111,7 +111,7 @@ intoi16 (Number intfa va) = intfa.into va |> i16from
 ------------------------------------------------------------------
 
 add : Number a -> Number a -> Number a
-add (Number intf va) (Number _ vb) = Number intf (intf.from (intf.into va + intf.into vb))
+add (Number intf va) (Number _ vb) = Number intf (intf.from (intf.bits va + intf.bits vb))
 
 addC : Number a -> Number a -> (Number a, Bool)
 addC x y =
@@ -130,7 +130,7 @@ subC x y =
     (Number intf vx, Number _ vy) -> (sub x y, intf.borrow vx vy)
 
 mul : Number a -> Number a -> Number a
-mul (Number intf va) (Number _ vb) = Number intf (intf.from (intf.into va * intf.into vb))
+mul (Number intf va) (Number _ vb) = Number intf (intf.from (intf.bits va * intf.bits vb))
 
 mulC : Number a -> Number a -> (Number a, Bool)
 mulC x y =
@@ -138,18 +138,18 @@ mulC x y =
     (Number intf vx, Number _ vy) -> (mul x y, intf.carry vx vy (*))
 
 div : Number a -> Number a -> Number a
-div (Number intf va) (Number _ vb) = Number intf (intf.from (intf.into va // intf.into vb))
+div (Number intf va) (Number _ vb) = Number intf (intf.from (intf.bits va // intf.bits vb))
 
 divC : Number a -> Number a -> (Number a, Bool)
 divC x y =
   case (x, y) of
-    (Number intf vx, Number _ vy) -> (mul x y, remainderBy (intf.into vy) (intf.into vx) /= 0)
+    (Number intf vx, Number _ vy) -> (div x y, remainderBy (intf.bits vy) (intf.bits vx) /= 0)
 
 mod : Number a -> Number a -> Number a
-mod (Number intf va) (Number _ vb) = Number intf (intf.from (modBy (intf.into vb) (intf.into va)))
+mod (Number intf va) (Number _ vb) = Number intf (intf.from (modBy (intf.bits vb) (intf.bits va)))
 
 rem : Number a -> Number a -> Number a
-rem (Number intf va) (Number _ vb) = Number intf (intf.from (remainderBy (intf.into vb) (intf.into va)))
+rem (Number intf va) (Number _ vb) = Number intf (intf.from (remainderBy (intf.bits vb) (intf.bits va)))
 
 ------------------------------------------------------------------
 --- BITWISE
@@ -167,7 +167,7 @@ xor (Number intf va) (Number _ vb) = Number intf (intf.from (Bitwise.xor (intf.b
 type Shift = ShiftArithmetic | ShiftLogical
 
 shl : Number a -> Number a -> Number a
-shl (Number intf x) (Number _ by) = Number intf (intf.from (Bitwise.shiftLeftBy (intf.into by) (intf.bits x)))
+shl (Number intf x) (Number _ by) = Number intf (intf.from (Bitwise.shiftLeftBy (intf.bits by) (intf.bits x)))
 
 shr : Number a -> Number a -> Shift -> Number a
 shr (Number intf x) (Number _ by) t =
@@ -175,8 +175,8 @@ shr (Number intf x) (Number _ by) t =
     fill = 32 - intf.width
   in
     case t of
-        ShiftArithmetic -> Number intf (intf.from (Bitwise.shiftRightBy (intf.into by + 32 - intf.width) (Bitwise.shiftLeftBy fill (intf.bits x))))
-        ShiftLogical -> Number intf (intf.from (Bitwise.shiftRightZfBy (intf.into by) (intf.bits x)))
+        ShiftArithmetic -> Number intf (intf.from (Bitwise.shiftRightBy (intf.bits by + 32 - intf.width) (Bitwise.shiftLeftBy fill (intf.bits x))))
+        ShiftLogical -> Number intf (intf.from (Bitwise.shiftRightZfBy (intf.bits by) (intf.bits x)))
 
 not : Number a -> Number a
 not (Number intf v) = Number intf (intf.from (Bitwise.complement (intf.bits v)))
