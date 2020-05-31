@@ -1,6 +1,7 @@
 module App exposing (main)
 import Chip16 exposing (..)
-import Numbers exposing (Int8, Int16, ChipInt(..), to, i8from, i16from, u16from)
+--import Numbers exposing (Int8, Int16, ChipInt(..), to, i8from, i16from, u16from)
+import Numbers2 as Numbers exposing (u16from, i16from, i8from, to)
 import Slice exposing (Slice, get)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -139,7 +140,7 @@ prefetch model =
   case model.rom of
     Nothing -> Instruction 0 0 0 0 -- not going to happen
     Just rom ->
-      case Decode.decode (instructionDecoder (to (U16 model.machine.cpu.pc))) rom of
+      case Decode.decode (instructionDecoder (to model.machine.cpu.pc)) rom of
         Just instr -> instr
         _ -> Instruction 0 0 0 0
 
@@ -158,7 +159,7 @@ toHex16 v =
 get_rx : Model -> Int -> String
 get_rx model i =
   case Slice.get i model.machine.cpu.regs of
-    Just val -> "0x" ++ toHex16 (to (I16 val))
+    Just val -> "0x" ++ toHex16 (to val)
     _ -> "0x0000"
 
 regs_table : Model -> Html Msg
@@ -204,7 +205,7 @@ controls model =
         , button [ type_ "button", class "btn btn-danger", onClick (Running False) ] [ Html.text "Pause" ]
       ]
     ]
-    {--, div [id "info"] [
+    , div [id "info"] [
       Html.text ("File = " ++ Debug.toString model.file)
       , br [] []
       , Html.text ("Running: " ++ Debug.toString model.running ++ " | Tick: " ++ Debug.toString model.tick)
@@ -214,7 +215,7 @@ controls model =
       , Html.text ("Render commands: " ++ Debug.toString (List.length model.machine.graphics.cmdbuffer))
       , br [] []
       , Html.text ("Graphics state: " ++ Debug.toString model.machine.graphics)
-    ]--}
+    ]
   ]
 
 inspector : Model -> Html Msg
@@ -226,10 +227,10 @@ inspector model =
       , br [] []
       , table [class "table table-sm"] [
         tr [] [
-          td [] [b [] [Html.text "PC "], Html.text ("0x" ++ toHex16 (to (U16 model.machine.cpu.pc)))]
+          td [] [b [] [Html.text "PC "], Html.text ("0x" ++ toHex16 (to model.machine.cpu.pc))]
         ],
         tr [] [
-          td [] [b [] [Html.text "SP "], Html.text ("0x" ++ toHex16 (to (U16 model.machine.cpu.sp)))]
+          td [] [b [] [Html.text "SP "], Html.text ("0x" ++ toHex16 (to model.machine.cpu.sp))]
         ]
       ],
       div [style "display" "flex"
@@ -241,7 +242,7 @@ inspector model =
             (List.map
               (\i ->
                 case Memory.get (u16from (i * 2)) model.machine.memory of
-                  Just v -> tr [] [ td [] [Html.text (toHex16 (to (U16 (u16from (i * 2)))))], td [] [Html.text (Hex.toString (to (U16 (Numbers.tou16 (I16 v)))))]]
+                  Just v -> tr [] [ td [] [Html.text (toHex16 (i * 2))], td [] [Html.text (Hex.toString (to v))]]
                   _ -> tr [] [])
               (List.range 0 100))
         ],
@@ -250,7 +251,7 @@ inspector model =
             (List.map
               (\i ->
                 case Memory.get (u16from (0xFDF0 + i * 2)) model.machine.memory of
-                  Just v -> tr [] [ td [] [Html.text (toHex16 (to (U16 (u16from (0xFDF0 + i * 2)))))], td [] [Html.text (Hex.toString (to (U16 (Numbers.tou16 (I16 v)))))]]
+                  Just v -> tr [] [ td [] [Html.text (toHex16 (0xFDF0 + i * 2))], td [] [Html.text (Hex.toString (to v))]]
                   _ -> tr [] [])
               (List.range 0 100))
         ]
