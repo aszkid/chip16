@@ -754,33 +754,38 @@ opSpr : Chip16 -> Number I8 -> Number I8 -> Chip16
 opSpr machine w h =
   { machine | graphics = set_spritewh (to w) (to h) machine.graphics }
 
-drawRow : (Float, Float) -> Number U16 -> Chip16 -> Int -> List (Command)
-drawRow (x, y) addr machine row =
+drawRow : (Float, Float) -> Number U16 -> Chip16 -> Int -> Graphics -> Graphics
+drawRow (x, y) addr machine row gfx =
   let
+    idx : Int -> Number U16
     idx i = u16from (to addr + row * machine.graphics.spritew + i)
-    pixelCoord i n = (x + toFloat i * 2 + n, y + toFloat row)
-    pixels i =
+
+    put : Int -> Number I8 -> Float -> Graphics -> Graphics
+    put i v n theGfx = if isZero v then theGfx else Graphics.putPixel (x + toFloat i * 2 + n, y + toFloat row) (to v) theGfx
+
+    putPixels : Int -> Graphics -> Graphics
+    putPixels i theGfx =
       case Memory.get8 (idx i) machine.memory of
         Just v ->
           case nibbles v of
-            (ll, hh) -> List.concat [
-                  if isZero ll then [] else [ Graphics.Command (pixelCoord i 1) (to ll) ],
-                  if isZero hh then [] else [ Graphics.Command (pixelCoord i 0) (to hh) ] ]
+            (ll, hh) -> (put i ll 1 (put i hh 0 theGfx))
         _ -> Debug.todo "oopse!"
   in
-    List.concatMap
-      pixels
+    List.foldl
+      (\i -> putPixels i)
+      gfx
       (List.range 0 (machine.graphics.spritew-1))
 
 drawSprite : (Float, Float) -> Number U16 -> Chip16 -> Chip16
 drawSprite (x, y) addr machine =
   let
-    cmds = 
-      List.concatMap
+    gfx = 
+      List.foldl
         (drawRow (x, y) addr machine)
+        machine.graphics
         (List.range 0 (machine.graphics.spriteh - 1))
   in
-    { machine | graphics = Graphics.append cmds machine.graphics }
+    { machine | graphics = gfx }
 
 opDrwMem : Chip16 -> Number I8 -> Number I8 -> Number U16 -> Chip16
 opDrwMem machine rx ry hhll =

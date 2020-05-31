@@ -1,10 +1,11 @@
-module Graphics exposing (Command(..), Graphics, Palette(..), produce, append, getColor, clear, initGraphics)
+module Graphics exposing (Command(..), Graphics, Palette(..), putPixel, getColor, clear, produce, initGraphics)
 
 import Canvas exposing (Shape, Renderable, rect, shapes)
 import Canvas.Settings exposing (..)
 import Color exposing (Color)
 import Slice exposing (Slice)
 import Bitwise exposing (and, shiftRightBy)
+import Array exposing (Array)
 
 type Palette = Palette (Slice Int)
 type alias Graphics =
@@ -14,7 +15,7 @@ type alias Graphics =
   , spriteh : Int
   , hflip : Bool
   , vflip : Bool
-  , cmdbuffer : List (Command) }
+  , screen : Array Int }
 type Command = Command (Float, Float) Int
 
 initPalette : Palette
@@ -29,6 +30,9 @@ initPalette = Palette
     , 0x00467F, 0x68ABCC
     , 0xBCDEE4, 0xFFFFFF ])
 
+initScreen : Array Int
+initScreen = Array.repeat 76800 0
+
 initGraphics : Graphics
 initGraphics =
   { palette = initPalette
@@ -37,7 +41,27 @@ initGraphics =
   , spriteh = 0
   , hflip = False
   , vflip = False
-  , cmdbuffer = [] }
+  , screen = initScreen }
+
+
+putPixel : (Float, Float) -> Int -> Graphics -> Graphics
+putPixel (x, y) c g =
+  { g | screen = Array.set (round (x + y * 320)) c g.screen }
+
+produce : Graphics -> Array (Int)
+produce g =
+  let
+    pal = case g.palette of Palette p -> p
+    produce_cmd : Int -> Int
+    produce_cmd col =
+      if col == 0 then g.bg else
+        case Slice.get col pal of
+            Just color -> color
+            _ -> 0xfc0303 -- red
+  in
+    Array.map
+      produce_cmd
+      g.screen
 
 extractColor : Int -> Color
 extractColor col =
@@ -54,13 +78,13 @@ getColor i (Palette pal) =
     Just color -> extractColor color
     _ -> Color.red
 
-append : List (Command) -> Graphics -> Graphics
+{--append : List (Command) -> Graphics -> Graphics
 append cmds g =
-    { g | cmdbuffer = List.append g.cmdbuffer cmds }
+    { g | cmdbuffer = List.append g.cmdbuffer cmds }--}
 
 -- resolve colors and produce a final list of renderables
 -- TODO: could optimize by batching, but take it easy
-produce : List (Command) -> Palette -> List (Renderable)
+{--produce : List (Command) -> Palette -> List (Renderable)
 produce cmds (Palette pal) =
     let
         produce_cmd : Command -> Renderable
@@ -72,8 +96,8 @@ produce cmds (Palette pal) =
         List.map
             produce_cmd
             --(List.reverse cmds)
-            cmds
+            cmds--}
 
 clear : Graphics -> Graphics
 clear g =
-  { g | cmdbuffer = [] }
+  { g | screen = initScreen }

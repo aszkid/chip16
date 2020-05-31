@@ -14,12 +14,14 @@ import Bytes.Decode as Decode exposing (Decoder)
 import Bytes.Decode.Extra as Decode
 import Time
 import Hex
-import Canvas exposing (Renderable, shapes, rect)
-import Canvas.Settings exposing (fill)
-import Color
 import Graphics
 import Memory exposing (Memory)
 import Keyboard exposing (Key)
+import Array exposing (Array)
+import Base64
+import Html exposing (img)
+import Html.Attributes exposing (src)
+import Image exposing (Image)
 
 main : Program Flags Model Msg
 main = 
@@ -39,7 +41,7 @@ type alias Model =
   , rom : Maybe Bytes
   , running : Bool
   , tick : Int
-  , screen : List (Renderable)
+  , screen : Image
   , pressedKeys : List Key
   }
 
@@ -130,7 +132,7 @@ initModel =
   , rom = Nothing
   , running = False
   , tick = 0
-  , screen = []
+  , screen = Image.fromList 0 []
   , pressedKeys = []
   }
 
@@ -272,11 +274,11 @@ screen model =
         , style "justify-content" "center"
         , style "align-items" "center"
         ]
-        [ Canvas.toHtml (width, height) []
-          (shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: render model)
+        [
+          Html.img [ src (Image.toPngUrl (render model)) ] []
         ]
-render : Model -> List (Renderable)
-render model = Graphics.produce model.machine.graphics.cmdbuffer model.machine.graphics.palette
+render : Model -> Image
+render model = Image.fromList 0 [] --Image.fromArray 480 (Graphics.produce model.machine.graphics)
 
 view : Model -> Html Msg
 view model =
@@ -328,7 +330,7 @@ take_step model =
         { model
         | machine = Chip16.dispatch machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
         , tick = if should_vblank then 0 else model.tick + 1
-        , screen = if should_vblank then List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) 640 480 ]], render model ] else model.screen }
+        , screen = if should_vblank then (render model) else model.screen }
 
 steps : Int -> Model -> Model
 steps n model =
@@ -380,6 +382,6 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
-    [ Time.every 60 (\t -> Step 16666 False)
+    [ Time.every 60 (\t -> Step 1 False)
     , Sub.map KeyMsg Keyboard.subscriptions
     ]
