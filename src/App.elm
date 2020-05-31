@@ -1,10 +1,10 @@
 module App exposing (main)
-import Chip16 exposing (..)
-import Numbers2 as Numbers exposing (u16from, i16from, i8from, to, bits)
-import Slice exposing (Slice, get)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Chip16 exposing (Chip16)
+import Numbers2 exposing (u16from, i16from, i8from, to, bits)
+import Slice
+import Html exposing (Html, table, tr, td, b, div, button, br, h1)
+import Html.Attributes exposing (id, class, type_, style)
+import Html.Events exposing (onClick)
 import Browser
 import File exposing (File)
 import File.Select as Select
@@ -14,8 +14,8 @@ import Bytes.Decode as Decode exposing (Decoder)
 import Bytes.Decode.Extra as Decode
 import Time
 import Hex
-import Canvas exposing (..)
-import Canvas.Settings exposing (..)
+import Canvas exposing (Renderable, shapes, rect)
+import Canvas.Settings exposing (fill)
 import Color
 import Graphics
 import Memory exposing (Memory)
@@ -221,8 +221,7 @@ inspector : Model -> Html Msg
 inspector model =
   div [id "inspector", class "flex-fill"] [
     div [] [
-      case prefetch model of
-        Instruction a b c d -> Html.text ("Instruction = " ++ toStr (prefetch model))
+      Html.text ("Instruction = " ++ toStr (prefetch model))
       , br [] []
       , table [class "table table-sm"] [
         tr [] [
@@ -297,7 +296,7 @@ take_step model =
     case prefetch model of
       Instruction a b c d ->
         { model
-        | machine = dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
+        | machine = Chip16.dispatch model.machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
         , tick = if should_vblank then 0 else model.tick + 1
         , screen = if should_vblank then List.concat [ [shapes [ fill Color.white ] [ rect (0, 0) 640 480 ]], render model ] else model.screen }
 
