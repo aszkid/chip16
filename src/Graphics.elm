@@ -73,7 +73,6 @@ produce gfx =
         List.map
             produce_cmd
             (List.reverse gfx.cmds)
-            --cmds
 
 clear : Graphics -> Graphics
 clear g =

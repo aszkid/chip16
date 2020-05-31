@@ -39,6 +39,7 @@ type alias Model =
   , running : Bool
   , tick : Int
   , pressedKeys : List Key
+  , screen : List (Renderable)
   }
 
 type alias Header =
@@ -111,10 +112,11 @@ type Msg
   = FileRequested
   | FileLoaded File
   | FileContentLoaded Bytes
-  | Step Int Bool
+  | Step Int Bool Bool
   | Running Bool
   | Reset
   | KeyMsg Keyboard.Msg
+  | Render
 
 type alias Flags = ()
 
@@ -129,6 +131,7 @@ initModel =
   , running = False
   , tick = 0
   , pressedKeys = []
+  , screen = []
   }
 
 init : Flags -> (Model, Cmd Msg)
@@ -200,22 +203,20 @@ controls model =
         , button [ type_ "button", class "btn btn-warning", onClick Reset ] [ Html.text "Reset" ]
       ]
       , div [class "btn-group"] [
-        button [ type_ "button", class "btn btn-success", onClick (Step 1 True) ] [ Html.text "Step" ]
+        button [ type_ "button", class "btn btn-success", onClick (Step 1 True False) ] [ Html.text "Step" ]
         , button [ type_ "button", class "btn btn-secondary", onClick (Running True) ] [ Html.text "Start" ]
         , button [ type_ "button", class "btn btn-danger", onClick (Running False) ] [ Html.text "Pause" ]
       ]
     ]
-    {--, div [id "info"] [
+    , div [id "info"] [
       Html.text ("File = " ++ Debug.toString model.file)
       , br [] []
       , Html.text ("Running: " ++ Debug.toString model.running ++ " | Tick: " ++ Debug.toString model.tick)
       , br [] []
       , Html.text ("Flags: " ++ Debug.toString model.machine.cpu.flags)
       , br [] []
-      , Html.text ("Render commands: " ++ Debug.toString (List.length model.machine.graphics.cmdbuffer))
-      , br [] []
-      , Html.text ("Graphics state: " ++ Debug.toString model.machine.graphics)
-    ]--}
+      , Html.text ("Render commands: " ++ Debug.toString (List.length model.machine.graphics.cmds))
+    ]
   ]
 
 inspector : Model -> Html Msg
@@ -270,7 +271,7 @@ screen model =
         , style "align-items" "center"
         ]
         [ Canvas.toHtml (width, height) []
-          (shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: render model)
+          (shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: model.screen )
         ]
 render : Model -> List (Renderable)
 render model = Graphics.produce model.machine.graphics
@@ -306,11 +307,10 @@ setKey key acc =
     Keyboard.Enter -> set Chip16.Start
     _ -> Debug.todo "fooo"
 
-take_step : Model -> Model
-take_step model =
+take_step : Model -> Bool -> Model
+take_step model vblank =
   let
-    should_vblank = model.tick >= 1666
-    controller = if should_vblank then
+    controller = if vblank then
       Just (List.foldl
         setKey
         (i16from 0)
@@ -323,16 +323,16 @@ take_step model =
     case prefetch model of
       Instruction a b c d ->
         { model
-        | machine = Chip16.dispatch machine should_vblank (i8from a) (i8from b) (i8from c) (i8from d)
-        , tick = if should_vblank then 0 else model.tick + 1 }
+        | machine = Chip16.dispatch machine vblank (i8from a) (i8from b) (i8from c) (i8from d)
+        , tick = if vblank then 0 else model.tick + 1 }
 
-steps : Int -> Model -> Model
-steps n model =
+steps : Int -> Model -> Bool -> Model
+steps n model vblank =
   let
     take_steps : Bytes -> Model
     take_steps rom =
       List.foldl
-        (\_ the_model -> take_step the_model)
+        (\i the_model -> if i == 1 then take_step the_model vblank else take_step the_model False)
         model
         (List.range 1 n)
   in
@@ -368,14 +368,17 @@ update msg model =
         , rom = rom}
         , Cmd.none
       )
-    Step n force -> if model.running || force then (steps n model, Cmd.none) else (model, Cmd.none)
+    Step n force vblank -> if model.running || force then (steps n model vblank, Cmd.none) else (model, Cmd.none)
     Running b -> ({ model | running = b }, Cmd.none)
     Reset -> ({ model | machine = Chip16.init, tick = 0 }, Cmd.none)
     KeyMsg keyMsg -> ({ model | pressedKeys = Keyboard.update keyMsg model.pressedKeys }, Cmd.none)
+    Render -> ({ model | screen = render model }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
-    [ Time.every 60 (\t -> Step 1666 False)
+    [ Time.every 10 (\t -> Step 5000 False False)
+    , Time.every 60 (\t -> Step 1 False True)
+    , Time.every 60 (\t -> Render)
     , Sub.map KeyMsg Keyboard.subscriptions
     ]
