@@ -1,4 +1,4 @@
-module Chip16 exposing (Chip16, init, initFrom, dispatch)
+module Chip16 exposing (Chip16, init, initFrom, dispatch, keyUp, keyDown, Key(..))
 
 --import Numbers exposing (..)
 import Numbers2 as Numbers exposing (..)
@@ -904,6 +904,41 @@ opCall machine rx =
                  | memory = mem
                  , cpu = set_sp (set_pc machine.cpu (intou16 vx)) newsp }
       _ -> Debug.todo "invalid register"
+
+type Key = Up | Down | Left | Right | A | B | Select | Start
+
+-- key to bit index
+keyMap : Key -> Int
+keyMap k =
+  case k of
+    Up -> 0
+    Down -> 1
+    Left -> 2
+    Right -> 3
+    Select -> 4
+    Start -> 5
+    A -> 6
+    B -> 7
+
+controllerAddr : Number U16
+controllerAddr = u16from 0xFFF0
+
+keyMask i = Numbers.shl (i16from 1) (i16from i)
+keyValue memory =
+  case Memory.get controllerAddr memory of
+    Just v -> v
+    _ -> Debug.todo "impossible"
+
+keyDown : Memory -> Key -> Memory
+keyDown memory k =
+  case keyMap k of
+    i -> Memory.set controllerAddr (Numbers.or (keyValue memory) (keyMask i)) memory
+    
+keyUp : Memory -> Key -> Memory
+keyUp memory k =
+  case keyMap k of
+    i -> Memory.set controllerAddr (Numbers.and (keyValue memory) (Numbers.not (keyMask i))) memory
+
 
 -- attempt to dispatch an instruction from 4 bytes
 dispatch : Chip16 -> Bool -> Number I8 -> Number I8 -> Number I8 -> Number I8 -> Chip16
