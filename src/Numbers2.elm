@@ -1,9 +1,10 @@
 module Numbers2 exposing
   ( U8, I8, U16, I16
   , Number
-  , to
+  , to, bits
   , u8from, u16from, i8from, i16from
   , intou8, intou16, intoi8, intoi16
+  , i16build, u16build, nibbles, isZero, isPos, isNeg, eq
   , add, addC, neg, sub, subC, mul, mulC, div, divC, mod, rem
   , and, or, xor, Shift(..), shl, shr, not )
 
@@ -33,6 +34,9 @@ to (Number intf v) = intf.into v
 
 from : NumberI a -> Int -> Number a
 from intf = \v -> Number intf (intf.from v)
+
+bits : Number a -> Int
+bits (Number intf v) = intf.bits v
 
 ------------------------------------------------------------------
 --- INTEGER TYPES
@@ -176,3 +180,28 @@ shr (Number intf x) (Number _ by) t =
 
 not : Number a -> Number a
 not (Number intf v) = Number intf (intf.from (Bitwise.complement (intf.bits v)))
+
+------------------------------------------------------------------
+--- HELPERS
+------------------------------------------------------------------
+
+u16build : Number I8 -> Number I8 -> Number U16
+u16build (Number intf low) (Number _ hi) = u16from (Bitwise.or (intf.bits low) (Bitwise.shiftLeftBy 8 (intf.bits hi)))
+
+i16build : Number I8 -> Number I8 -> Number I16
+i16build lo hi = intoi16 (u16build lo hi)
+
+nibbles : Number I8 -> (Number I8, Number I8)
+nibbles byte = (and byte (i8from 0xF), and (shr byte (i8from 4) ShiftLogical) (i8from 0xF))
+
+isNeg : Number a -> Bool
+isNeg (Number intf v) = intf.into v < 0
+
+isPos : Number a -> Bool
+isPos (Number intf v) = intf.into v > 0
+
+isZero : Number a -> Bool
+isZero (Number intf v) = intf.bits v == 0
+
+eq : Number a -> Number a -> Bool
+eq (Number intf x) (Number _ y) = intf.bits x == intf.bits y
