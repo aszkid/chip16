@@ -19,7 +19,7 @@ binFlags fs =
   let
     set bit yes to = Bitwise.or to (if yes then Bitwise.shiftLeftBy bit 1 else 0)
   in
-    i16from (set 1 fs.carry (set 2 fs.zero (set 6 fs.overflow (set 7 fs.negative 0))))
+    set 7 fs.negative 0 |> set 6 fs.overflow |> set 2 fs.zero |> set 1 fs.carry |> i16from
 
 type alias Cpu =
   { pc : Number U16,
@@ -48,28 +48,6 @@ initCpu =
   , regs = Slice.new 16 (i16from 0)
   , flags = initFlags
   , seed = Random.initialSeed 42 }
-
-initPalette : Palette
-initPalette = Palette
-  ( Slice.fromList
-    [ 0x000000, 0x000000
-    , 0x888888, 0xBF3932
-    , 0xDE7AAE, 0x4C3D21
-    , 0x905F25, 0xE49452
-    , 0xEAD979, 0x537A3B
-    , 0xABD54A, 0x252E38
-    , 0x00467F, 0x68ABCC
-    , 0xBCDEE4, 0xFFFFFF ])
-
-initGraphics : Graphics
-initGraphics =
-  { palette = initPalette
-  , bg = 0
-  , spritew = 0
-  , spriteh = 0
-  , hflip = False
-  , vflip = False
-  , cmdbuffer = [] }
 
 init : Chip16
 init = 
@@ -112,21 +90,14 @@ set_pc cpu val
 
 dec_pc : Int -> Cpu -> Cpu
 dec_pc by cpu =
-  let
-    new_pc = Numbers.sub cpu.pc (u16from by)
-  in
-    { cpu | pc = new_pc }
+  { cpu | pc = Numbers.sub cpu.pc (u16from by) }
 
 inc_pc : Int -> Cpu -> Cpu
 inc_pc by cpu =
-  let
-    new_pc = Numbers.add cpu.pc (u16from by)
-  in
-    { cpu | pc = new_pc }
+  { cpu | pc = Numbers.add cpu.pc (u16from by) }
 
 set_seed : Random.Seed -> Cpu -> Cpu
-set_seed seed cpu =
-  { cpu | seed = seed }
+set_seed seed cpu = { cpu | seed = seed }
 
 type FlagEnum = FCarry | FZero | FOverflow | FNegative
 set_flag : FlagEnum -> Bool -> Flags -> Flags
@@ -139,7 +110,7 @@ set_flag flag val flags =
 
 set_flags : List (FlagEnum, Bool) -> Flags -> Flags
 set_flags list flags =
-  List.foldl (\(f, v) fs -> set_flag f v fs) flags list
+  List.foldl (\(f, v) -> set_flag f v) flags list
 
 set_palette : Palette -> Graphics -> Graphics
 set_palette p g =
@@ -166,10 +137,7 @@ add : Number I16 -> Number I16 -> Cpu -> (Number I16, Cpu)
 add x y cpu =
   let
     (res, carry) = Numbers.addC x y
-    zero = isZero res
-    overflow = isPos res && isNeg x && isNeg y
-    negative = isNeg res
-    flags = [(FCarry, carry), (FZero, zero), (FOverflow, overflow), (FNegative, negative)]
+    flags = [(FCarry, carry), (FZero, isZero res), (FOverflow, isPos res && isNeg x && isNeg y), (FNegative, isNeg res)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -177,11 +145,9 @@ sub : Number I16 -> Number I16 -> Cpu -> (Number I16, Cpu)
 sub x y cpu =
   let
     (res, borrow) = Numbers.subC x y
-    zero = isZero res
     overflow = (isPos res && isNeg x && isPos y)
       || (isNeg res && isPos x && isNeg y)
-    negative = isNeg res
-    flags = [(FCarry, borrow), (FZero, zero), (FOverflow, overflow), (FNegative, negative)]
+    flags = [(FCarry, borrow), (FZero, isZero res), (FOverflow, overflow), (FNegative, isNeg res)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -410,9 +376,7 @@ mul : Number I16 -> Number I16 -> Cpu -> (Number I16, Cpu)
 mul x y cpu =
   let
     (res, carry) = Numbers.mulC x y
-    zero = isZero res
-    negative = isNeg res
-    flags = [(FCarry, carry), (FZero, zero), (FNegative, negative)]
+    flags = [(FCarry, carry), (FZero, isZero res), (FNegative, isNeg res)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -446,9 +410,7 @@ div : Number I16 -> Number I16 -> Cpu -> (Number I16, Cpu)
 div x y cpu =
   let
     (res, remainder) = Numbers.divC x y
-    zero = isZero res
-    negative = isNeg res
-    flags = [(FCarry, remainder), (FZero, zero), (FNegative, negative)]
+    flags = [(FCarry, remainder), (FZero, isZero res), (FNegative, isNeg res)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -482,9 +444,7 @@ mod : Number I16 -> Number I16 -> Cpu -> (Number I16, Cpu)
 mod x y cpu =
   let
     res = Numbers.mod x y
-    zero = isZero res
-    negative = isNeg res
-    flags = [(FZero, zero), (FNegative, negative)]
+    flags = [(FZero, isZero res), (FNegative, isNeg res)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -518,9 +478,7 @@ rem : Number I16 -> Number I16 -> Cpu -> (Number I16, Cpu)
 rem x y cpu =
   let
     res = Numbers.rem x y
-    zero = isZero res
-    negative = isNeg res
-    flags = [(FZero, zero), (FNegative, negative)]
+    flags = [(FZero, isZero res), (FNegative, isNeg res)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -556,9 +514,7 @@ shift num by dir t cpu =
       case dir of
         ShiftLeft -> Numbers.shl num by
         ShiftRight -> Numbers.shr num by t
-    zero = isZero res
-    negative = isNeg res
-    flags = [(FZero, zero), (FNegative, negative)]
+    flags = [(FZero, isZero res), (FNegative, isNeg res)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -725,9 +681,7 @@ not : Number I16 -> Cpu -> (Number I16, Cpu)
 not v cpu = 
   let
     res = Numbers.not v
-    zero = isZero res
-    negative = isNeg res
-    flags = [(FZero, zero), (FNegative, negative)]
+    flags = [(FZero, isZero res), (FNegative, isNeg res)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -735,9 +689,7 @@ neg : Number I16 -> Cpu -> (Number I16, Cpu)
 neg v cpu = 
   let
     res = Numbers.neg v
-    zero = isZero res
-    negative = isNeg res
-    flags = [(FZero, zero), (FNegative, negative)]
+    flags = [(FZero, isZero res), (FNegative, isNeg res)]
   in
     (res, { cpu | flags = set_flags flags cpu.flags })
 
@@ -1080,13 +1032,3 @@ dispatch machine_ vblank a b c d =
       0xE4 -> opNeg1 machine rx
       0xE5 -> opNeg2 machine rx ry
       _ -> Debug.todo ("instruction `" ++  Debug.toString (to a) ++ " ` does not exist!")
-
-{--
-
--- decodes an instruction from a byte stream
-decode : Decoder (Maybe Instruction)
-
--- executes an instruction, returning an updated machine state
-exec : Chip16 -> Instruction -> Chip16
-
---}

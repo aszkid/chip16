@@ -1,4 +1,4 @@
-module Graphics exposing (Command(..), Graphics, Palette(..), produce, append, getColor, clear)
+module Graphics exposing (Command(..), Graphics, Palette(..), produce, append, getColor, clear, initGraphics)
 
 import Canvas exposing (Shape, Renderable, rect, shapes)
 import Canvas.Settings exposing (..)
@@ -16,6 +16,28 @@ type alias Graphics =
   , vflip : Bool
   , cmdbuffer : List (Command) }
 type Command = Command (Float, Float) Int
+
+initPalette : Palette
+initPalette = Palette
+  ( Slice.fromList
+    [ 0x000000, 0x000000
+    , 0x888888, 0xBF3932
+    , 0xDE7AAE, 0x4C3D21
+    , 0x905F25, 0xE49452
+    , 0xEAD979, 0x537A3B
+    , 0xABD54A, 0x252E38
+    , 0x00467F, 0x68ABCC
+    , 0xBCDEE4, 0xFFFFFF ])
+
+initGraphics : Graphics
+initGraphics =
+  { palette = initPalette
+  , bg = 0
+  , spritew = 0
+  , spriteh = 0
+  , hflip = False
+  , vflip = False
+  , cmdbuffer = [] }
 
 extractColor : Int -> Color
 extractColor col =
