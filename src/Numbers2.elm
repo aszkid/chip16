@@ -5,7 +5,7 @@ module Numbers2 exposing
   , u8from, u16from, i8from, i16from
   , intou8, intou16, intoi8, intoi16
   , add, addC, neg, sub, subC, mul, mulC, div, divC, mod, rem
-  )--, and, or, xor, shl, shr, not )
+  , and, or, xor, Shift(..), shl, shr, not )
 
 import Bitwise
 
@@ -23,7 +23,9 @@ type alias NumberI a =
   , from : Int -> a
   , carry : a -> a -> (Int -> Int -> Int) -> Bool
   , neg : a -> a
-  , borrow : a -> a -> Bool }
+  , borrow : a -> a -> Bool
+  , bits : a -> Int
+  , width : Int }
 type Number a = Number (NumberI a) a
 
 to : Number a -> Int
@@ -42,7 +44,9 @@ u8interface =
   , from = \i -> U8 (Bitwise.and 0xFF i)
   , carry = \(U8 va) (U8 vb) op -> op va vb > 255
   , neg = \(U8 v) -> U8 (Bitwise.and (Bitwise.complement v + 1) 0xFF)
-  , borrow = \(U8 va) (U8 vb) -> vb > va }
+  , borrow = \(U8 va) (U8 vb) -> vb > va
+  , bits = \(U8 v) -> v
+  , width = 8 }
 
 u8from : Int -> Number U8
 u8from = from u8interface
@@ -56,7 +60,9 @@ u16interface =
   , from = \i -> U16 (Bitwise.and 0xFFFF i)
   , carry = \(U16 va) (U16 vb) op -> op va vb > 65535
   , neg = \(U16 v) -> U16 (Bitwise.and (Bitwise.complement v + 1) 0xFFFF)
-  , borrow = \(U16 va) (U16 vb) -> vb > va }
+  , borrow = \(U16 va) (U16 vb) -> vb > va
+  , bits = \(U16 v) -> v
+  , width = 16 }
 
 u16from : Int -> Number U16
 u16from = from u16interface
@@ -70,7 +76,9 @@ i8interface =
   , from = \i -> I8 (Bitwise.and 0xFF i)
   , carry = \(I8 va) (I8 vb) op -> op va vb > 255
   , neg = \(I8 v) -> I8 (Bitwise.and (Bitwise.complement v + 1) 0xFF)
-  , borrow = \(I8 va) (I8 vb) -> vb > va }
+  , borrow = \(I8 va) (I8 vb) -> vb > va
+  , bits = \(I8 v) -> v
+  , width = 8 }
 
 i8from : Int -> Number I8
 i8from = from i8interface
@@ -84,7 +92,9 @@ i16interface =
   , from = \i -> I16 (Bitwise.and 0xFFFF i)
   , carry = \(I16 va) (I16 vb) op -> op va vb > 65535
   , neg = \(I16 v) -> I16 (Bitwise.and (Bitwise.complement v + 1) 0xFFFF)
-  , borrow = \(I16 va) (I16 vb) -> vb > va }
+  , borrow = \(I16 va) (I16 vb) -> vb > va
+  , bits = \(I16 v) -> v
+  , width = 16 }
 
 i16from : Int -> Number I16
 i16from = from i16interface
@@ -128,14 +138,41 @@ div (Number intf va) (Number _ vb) = Number intf (intf.from (intf.into va // int
 
 divC : Number a -> Number a -> (Number a, Bool)
 divC x y =
-  let
-    res = mul x y
-  in
-    case (x, y) of
-        (Number intf vx, Number _ vy) -> (res, remainderBy (intf.into vy) (intf.into vx) /= 0)
+  case (x, y) of
+    (Number intf vx, Number _ vy) -> (mul x y, remainderBy (intf.into vy) (intf.into vx) /= 0)
 
 mod : Number a -> Number a -> Number a
 mod (Number intf va) (Number _ vb) = Number intf (intf.from (modBy (intf.into vb) (intf.into va)))
 
 rem : Number a -> Number a -> Number a
 rem (Number intf va) (Number _ vb) = Number intf (intf.from (remainderBy (intf.into vb) (intf.into va)))
+
+------------------------------------------------------------------
+--- BITWISE
+------------------------------------------------------------------
+
+and : Number a -> Number a -> Number a
+and (Number intf va) (Number _ vb) = Number intf (intf.from (Bitwise.and (intf.bits va) (intf.bits vb)))
+
+or : Number a -> Number a -> Number a
+or (Number intf va) (Number _ vb) = Number intf (intf.from (Bitwise.or (intf.bits va) (intf.bits vb)))
+
+xor : Number a -> Number a -> Number a
+xor (Number intf va) (Number _ vb) = Number intf (intf.from (Bitwise.xor (intf.bits va) (intf.bits vb)))
+
+type Shift = ShiftArithmetic | ShiftLogical
+
+shl : Number a -> Number a -> Number a
+shl (Number intf x) (Number _ by) = Number intf (intf.from (Bitwise.shiftLeftBy (intf.into by) (intf.bits x)))
+
+shr : Number a -> Number a -> Shift -> Number a
+shr (Number intf x) (Number _ by) t =
+  let
+    fill = 32 - intf.width
+  in
+    case t of
+        ShiftArithmetic -> Number intf (intf.from (Bitwise.shiftRightBy (intf.into by + 32 - intf.width) (Bitwise.shiftLeftBy fill (intf.bits x))))
+        ShiftLogical -> Number intf (intf.from (Bitwise.shiftRightZfBy (intf.into by) (intf.bits x)))
+
+not : Number a -> Number a
+not (Number intf v) = Number intf (intf.from (Bitwise.complement (intf.bits v)))
