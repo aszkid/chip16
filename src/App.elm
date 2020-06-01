@@ -75,21 +75,6 @@ romDecoder hdr =
   Decode.withOffset 16 (Decode.bytes hdr.romsz)
 
 type Instruction = Instruction Int Int Int Int
-instructionDecoder : Int -> Decoder Instruction
-instructionDecoder pc =
-  Decode.withOffset pc (
-    Decode.loop (0, Instruction 0 0 0 0) (\(step, Instruction a b c d) -> 
-      if step >= 4 then
-        Decode.succeed (Decode.Done (Instruction a b c d))
-      else
-        Decode.map
-          (\byte -> case step of
-            0 -> Decode.Loop (1, Instruction byte 0 0 0)
-            1 -> Decode.Loop (2, Instruction a byte 0 0)
-            2 -> Decode.Loop (3, Instruction a b byte 0)
-            3 -> Decode.Loop (4, Instruction a b c byte)
-            _ -> Debug.todo "failed to decode isntruction")
-          Decode.unsignedInt8))
 
 bytesToMemory : Int -> Decoder Memory
 bytesToMemory romsz = 
@@ -335,28 +320,31 @@ steps n model vblank =
     model
     (List.range 1 n)
 
+loadRom : Bytes -> Model -> (Model, Cmd Msg)
+loadRom b model =
+  let
+    hdr = Decode.decode headerDecoder b
+    rom = case hdr of
+      Just h -> Decode.decode (romDecoder h) b
+      Nothing -> Nothing
+  in (
+    { model
+    | file = Just b
+    , machine = case (hdr, rom) of
+        (Just theHdr, Just theRom) -> case Decode.decode (bytesToMemory theHdr.romsz) theRom of
+          Just memory -> Chip16.initFrom memory
+          _ -> Debug.todo "failed to parse bytes to memory!"
+        _ -> Debug.todo "failed to parse hdr/rom!"
+    , tick = 0 }
+    , Cmd.none
+  )
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     FileRequested -> (model, Select.file ["application/octet-stream"] FileLoaded)
     FileLoaded f -> (model, Task.perform FileContentLoaded (File.toBytes f))
-    FileContentLoaded b ->
-      let
-        hdr = Decode.decode headerDecoder b
-        rom = case hdr of
-          Just h -> Decode.decode (romDecoder h) b
-          Nothing -> Nothing
-      in (
-        { model
-        | file = Just b
-        , machine = case (hdr, rom) of
-            (Just theHdr, Just theRom) -> case Decode.decode (bytesToMemory theHdr.romsz) theRom of
-              Just memory -> Chip16.initFrom memory
-              _ -> Debug.todo "failed to parse bytes to memory!"
-            _ -> Debug.todo "failed to parse hdr/rom!"
-        , tick = 0 }
-        , Cmd.none
-      )
+    FileContentLoaded b -> loadRom b model
     Step n force vblank -> if model.running || force then (steps n model vblank, Cmd.none) else (model, Cmd.none)
     Running b -> ({ model | running = b }, Cmd.none)
     Reset -> ({ model | machine = Chip16.init, tick = 0 }, Cmd.none)
@@ -364,10 +352,10 @@ update msg model =
     Render -> ({ model | screen = render model }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
   Sub.batch
-    [ Time.every 10 (\t -> Step 10000 False False)
-    , Time.every 60 (\t -> Step 1 False True)
-    , Time.every 60 (\t -> Render)
+    [ Time.every 10 (\_ -> Step 10000 False False)
+    , Time.every 60 (\_ -> Step 1 False True)
+    , Time.every 60 (\_ -> Render)
     , Sub.map KeyMsg Keyboard.subscriptions
     ]
