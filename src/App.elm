@@ -5,6 +5,7 @@ import Slice
 import Html exposing (Html, table, tr, td, b, div, button, br, h1)
 import Html.Attributes exposing (id, class, type_, style)
 import Html.Events exposing (onClick)
+import Html.Lazy exposing (lazy)
 import Browser
 import File exposing (File)
 import File.Select as Select
@@ -269,7 +270,7 @@ screen model =
     , style "justify-content" "center"
     , style "align-items" "center"
     ]
-    [ model.screen ]
+    [ lazy (\_ -> model.screen) model.screen ]
 
 render : Model -> Html Msg
 render model = 
