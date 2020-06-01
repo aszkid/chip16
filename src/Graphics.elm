@@ -1,10 +1,19 @@
-module Graphics exposing (Command(..), Graphics, Palette(..), putPixel, getColor, clear, produce, initGraphics)
+module Graphics exposing (Command(..), Graphics, Palette(..), putPixel, getColor, clear, produce, initGraphics, width, height)
 
 import Canvas exposing (Renderable, rect, shapes)
 import Canvas.Settings exposing (fill)
 import Color exposing (Color)
 import Bitwise exposing (and, shiftRightBy)
 import Array exposing (Array)
+
+scale : Float
+scale = 2
+
+width : Float
+width = 320 * scale
+
+height : Float
+height = 240 * scale
 
 type Palette = Palette (Array Int)
 type alias Graphics =

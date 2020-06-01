@@ -261,9 +261,6 @@ inspector model =
     ]
   ]
 
-width = 640
-height = 480
-
 screen : Model -> Html Msg
 screen model =
   div
@@ -276,10 +273,10 @@ screen model =
 render : Model -> Html Msg
 render model = 
   let
-    data = shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: Graphics.produce model.machine.graphics
+    data = shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) Graphics.width Graphics.height ] :: Graphics.produce model.machine.graphics
   in
-    Canvas.toHtml (width, height) []
-      (clear (0, 0) width height :: data)
+    Canvas.toHtml (round Graphics.width, round Graphics.height) []
+      (clear (0, 0) Graphics.width Graphics.height :: data)
 
 view : Model -> Html Msg
 view model =
@@ -310,7 +307,7 @@ setKey key acc =
     Keyboard.Character "B" -> set Chip16.B
     Keyboard.Shift -> set Chip16.Select
     Keyboard.Enter -> set Chip16.Start
-    _ -> Debug.todo "fooo"
+    _ -> i16from 0
 
 take_step : Model -> Bool -> Model
 take_step model vblank =
