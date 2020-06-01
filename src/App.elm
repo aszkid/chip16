@@ -19,7 +19,7 @@ import Memory exposing (Memory)
 import Keyboard exposing (Key)
 import Canvas exposing (shapes, rect, clear)
 import Canvas.Settings exposing (fill)
-import Array exposing (Array)
+import Array
 
 main : Program Flags Model Msg
 main = 
@@ -355,7 +355,7 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
   Sub.batch
     [ Time.every 10 (\_ -> Step 10000 False False)
-    , Time.every 60 (\_ -> Step 1 False True)
-    , Time.every 60 (\_ -> Render)
+    , Time.every 16 (\_ -> Step 1 False True)
+    , Time.every 16 (\_ -> Render)
     , Sub.map KeyMsg Keyboard.subscriptions
     ]
