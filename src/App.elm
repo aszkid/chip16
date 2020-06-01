@@ -35,8 +35,6 @@ type alias Model =
   , file : Maybe Bytes
   , time : Time.Posix
   , delta : Int
-  , hdr : Maybe Header
-  , rom : Maybe Bytes
   , running : Bool
   , tick : Int
   , pressedKeys : List Key
@@ -127,8 +125,6 @@ initModel =
   , file = Nothing
   , time = Time.millisToPosix 0
   , delta = 0
-  , hdr = Nothing
-  , rom = Nothing
   , running = False
   , tick = 0
   , pressedKeys = []
@@ -139,14 +135,6 @@ init : Flags -> (Model, Cmd Msg)
 init () =
     (initModel, Cmd.none)
 
-{--prefetch : Model -> Instruction
-prefetch model =
-  case model.rom of
-    Nothing -> Instruction 0 0 0 0 -- not going to happen
-    Just rom ->
-      case Decode.decode (instructionDecoder (to model.machine.cpu.pc)) rom of
-        Just instr -> instr
-        _ -> Instruction 0 0 0 0--}
 prefetch : Model -> Instruction
 prefetch model = 
   let
@@ -284,7 +272,6 @@ screen model =
     , style "align-items" "center"
     ]
     [ lazy (\_ -> model.screen) model.screen ]
-    --[]
 
 render : Model -> Html Msg
 render model = 
@@ -301,9 +288,9 @@ view model =
     , div [class "d-flex flex-row"] [
         div [id "screen"] [
           screen model
-          --, regs_table model
-        ]--,
-        --inspector model
+          , regs_table model
+        ],
+        inspector model
     ]
     , controls model
     ]
@@ -346,21 +333,10 @@ take_step model vblank =
 
 steps : Int -> Model -> Bool -> Model
 steps n model vblank =
-  let
-    take_steps : Bytes -> Model
-    take_steps rom =
-      List.foldl
-        (\i the_model -> if i == 1 then take_step the_model vblank else take_step the_model False)
-        model
-        (List.range 1 n)
-  in
-    case model.rom of
-      Nothing -> model
-      Just rom ->
-        let
-          out_model = take_steps rom
-        in 
-          out_model
+  List.foldl
+    (\i the_model -> if i == 1 then take_step the_model vblank else take_step the_model False)
+    model
+    (List.range 1 n)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -376,14 +352,12 @@ update msg model =
       in (
         { model
         | file = Just b
-        , hdr = hdr
         , machine = case (hdr, rom) of
             (Just theHdr, Just theRom) -> case Decode.decode (bytesToMemory theHdr.romsz) theRom of
               Just memory -> Chip16.initFrom memory
               _ -> Debug.todo "failed to parse bytes to memory!"
             _ -> Debug.todo "failed to parse hdr/rom!"
-        , tick = 0
-        , rom = rom}
+        , tick = 0 }
         , Cmd.none
       )
     Step n force vblank -> if model.running || force then (steps n model vblank, Cmd.none) else (model, Cmd.none)
@@ -395,7 +369,7 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
-    [ Time.every 10 (\t -> Step 5000 False False)
+    [ Time.every 10 (\t -> Step 10000 False False)
     , Time.every 60 (\t -> Step 1 False True)
     , Time.every 60 (\t -> Render)
     , Sub.map KeyMsg Keyboard.subscriptions
