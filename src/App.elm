@@ -17,7 +17,7 @@ import Hex
 import Graphics
 import Memory exposing (Memory)
 import Keyboard exposing (Key)
-import Canvas exposing (Renderable, shapes, rect)
+import Canvas exposing (shapes, rect, clear)
 import Canvas.Settings exposing (fill)
 
 main : Program Flags Model Msg
@@ -39,7 +39,7 @@ type alias Model =
   , running : Bool
   , tick : Int
   , pressedKeys : List Key
-  , screen : List (Renderable)
+  , screen : Html Msg
   }
 
 type alias Header =
@@ -131,7 +131,7 @@ initModel =
   , running = False
   , tick = 0
   , pressedKeys = []
-  , screen = []
+  , screen = Html.div [] []
   }
 
 init : Flags -> (Model, Cmd Msg)
@@ -259,22 +259,25 @@ inspector model =
     ]
   ]
 
+width = 640
+height = 480
+
 screen : Model -> Html Msg
 screen model =
+  div
+    [ style "display" "flex"
+    , style "justify-content" "center"
+    , style "align-items" "center"
+    ]
+    [ model.screen ]
+
+render : Model -> Html Msg
+render model = 
   let
-    width = 640
-    height = 480
+    data = shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: Graphics.produce model.machine.graphics
   in
-    div
-        [ style "display" "flex"
-        , style "justify-content" "center"
-        , style "align-items" "center"
-        ]
-        [ Canvas.toHtml (width, height) []
-          (shapes [ fill (Graphics.getColor model.machine.graphics.bg model.machine.graphics.palette) ] [ rect (0, 0) width height ] :: model.screen )
-        ]
-render : Model -> List (Renderable)
-render model = Graphics.produce model.machine.graphics
+    Canvas.toHtml (width, height) []
+      (clear (0, 0) width height :: data)
 
 view : Model -> Html Msg
 view model =

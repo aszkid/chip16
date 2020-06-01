@@ -51,7 +51,8 @@ extractColor col =
         g = and 0xFF (shiftRightBy 8 col)
         b = and 0xFF col
     in
-        Color.rgb255 r g b
+        --Color.rgb255 r g b
+        Color.rgb (toFloat r / 255) (toFloat g / 255) (toFloat b / 255)
 
 getColor : Int -> Palette -> Color
 getColor i (Palette pal) =
