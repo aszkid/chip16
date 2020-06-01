@@ -1,13 +1,12 @@
 module Graphics exposing (Command(..), Graphics, Palette(..), putPixel, getColor, clear, produce, initGraphics)
 
-import Canvas exposing (Shape, Renderable, rect, shapes)
-import Canvas.Settings exposing (..)
+import Canvas exposing (Renderable, rect, shapes)
+import Canvas.Settings exposing (fill)
 import Color exposing (Color)
-import Slice exposing (Slice)
 import Bitwise exposing (and, shiftRightBy)
 import Array exposing (Array)
 
-type Palette = Palette (Slice Int)
+type Palette = Palette (Array Int)
 type alias Graphics =
   { palette : Palette
   , bg : Int
@@ -20,7 +19,7 @@ type Command = Command (Float, Float) Int
 
 initPalette : Palette
 initPalette = Palette
-  ( Slice.fromList
+  ( Array.fromList
     [ 0x000000, 0x000000
     , 0x888888, 0xBF3932
     , 0xDE7AAE, 0x4C3D21
@@ -51,12 +50,11 @@ extractColor col =
         g = and 0xFF (shiftRightBy 8 col)
         b = and 0xFF col
     in
-        --Color.rgb255 r g b
         Color.rgb (toFloat r / 255) (toFloat g / 255) (toFloat b / 255)
 
 getColor : Int -> Palette -> Color
 getColor i (Palette pal) =
-  case Slice.get i pal of
+  case Array.get i pal of
     Just color -> extractColor color
     _ -> Color.red
 
@@ -67,7 +65,7 @@ produce gfx =
         pal = case gfx.palette of (Palette p) -> p
         produce_cmd : Command -> Renderable
         produce_cmd (Command (x, y) col) =
-            case Slice.get col pal of
+            case Array.get col pal of
                 Just color -> shapes [ fill (extractColor color) ] [ rect (x * 2, y * 2) 2 2 ]
                 _ -> shapes [ fill Color.white ] [ rect (x * 2, y * 2) 2 2 ]
     in

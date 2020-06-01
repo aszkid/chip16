@@ -2,7 +2,7 @@ module Chip16 exposing (Chip16, init, initFrom, dispatch, keyMap, Key(..), setCo
 
 --import Numbers exposing (..)
 import Numbers2 as Numbers exposing (..)
-import Slice exposing (Slice)
+import Array exposing (Array)
 import Memory exposing (Memory)
 import Bitwise exposing (or, shiftLeftBy)
 import Random
@@ -24,7 +24,7 @@ binFlags fs =
 type alias Cpu =
   { pc : Number U16,
     sp : Number U16,
-    regs : Slice (Number I16),
+    regs : Array (Number I16),
     flags : Flags,
     seed : Random.Seed
   }    
@@ -45,7 +45,7 @@ initCpu : Cpu
 initCpu = 
   { pc = u16from 0
   , sp = Memory.stackAddr
-  , regs = Slice.new 16 (i16from 0)
+  , regs = Array.repeat 16 (i16from 0)
   , flags = initFlags
   , seed = Random.initialSeed 42 }
 
@@ -63,10 +63,10 @@ initFrom memory =
 
 set_rx : Cpu -> Number I8 -> Number I16 -> Cpu
 set_rx cpu rx val
-  = { cpu | regs = Slice.set (to rx) val cpu.regs }
+  = { cpu | regs = Array.set (to rx) val cpu.regs }
 
 get_rx : Cpu -> Number I8 -> Maybe (Number I16)
-get_rx cpu rx = Slice.get (to rx) cpu.regs
+get_rx cpu rx = Array.get (to rx) cpu.regs
 
 get_rx2 : Cpu -> Number I8 -> Number I8 -> Maybe (Number I16, Number I16)
 get_rx2 cpu rx ry =
@@ -654,11 +654,11 @@ opPopf machine =
 loadPal : Chip16 -> Number U16 -> Chip16
 loadPal machine addr =
   let
-    getPal : Chip16 -> Slice Int
+    getPal : Chip16 -> Array Int
     getPal mch = case mch.graphics.palette of
       Palette sl -> sl
     set : Chip16 -> Int -> Int -> Chip16
-    set mch idx color = { mch | graphics = set_palette (Palette (Slice.set idx color (getPal mch))) mch.graphics }
+    set mch idx color = { mch | graphics = set_palette (Palette (Array.set idx color (getPal mch))) mch.graphics }
     adder idx = (idx * 2) + to addr
   in
     List.foldl

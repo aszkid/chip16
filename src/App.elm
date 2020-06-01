@@ -1,7 +1,6 @@
 module App exposing (main)
 import Chip16 exposing (Chip16)
 import Numbers2 as Numbers exposing (Number, I16, u16from, i16from, i8from, to, bits)
-import Slice
 import Html exposing (Html, table, tr, td, b, div, button, br, h1)
 import Html.Attributes exposing (id, class, type_, style)
 import Html.Events exposing (onClick)
@@ -20,6 +19,7 @@ import Memory exposing (Memory)
 import Keyboard exposing (Key)
 import Canvas exposing (shapes, rect, clear)
 import Canvas.Settings exposing (fill)
+import Array exposing (Array)
 
 main : Program Flags Model Msg
 main = 
@@ -163,7 +163,7 @@ toHex16 v =
 
 get_rx : Model -> Int -> String
 get_rx model i =
-  case Slice.get i model.machine.cpu.regs of
+  case Array.get i model.machine.cpu.regs of
     Just val -> "0x" ++ toHex16 (bits val)
     _ -> "0x0000"
 
