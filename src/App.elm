@@ -139,14 +139,27 @@ init : Flags -> (Model, Cmd Msg)
 init () =
     (initModel, Cmd.none)
 
-prefetch : Model -> Instruction
+{--prefetch : Model -> Instruction
 prefetch model =
   case model.rom of
     Nothing -> Instruction 0 0 0 0 -- not going to happen
     Just rom ->
       case Decode.decode (instructionDecoder (to model.machine.cpu.pc)) rom of
         Just instr -> instr
-        _ -> Instruction 0 0 0 0
+        _ -> Instruction 0 0 0 0--}
+prefetch : Model -> Instruction
+prefetch model = 
+  let
+    ab = case Memory.get model.machine.cpu.pc model.machine.memory of
+      Just v -> v
+      _ -> i16from 0
+    cd = case Memory.get (Numbers.add (u16from 2) model.machine.cpu.pc) model.machine.memory of
+      Just v -> v
+      _ -> i16from 0
+    (a, b) = Numbers.unpacki16 ab
+    (c, d) = Numbers.unpacki16 cd
+  in
+    Instruction (to a) (to b) (to c) (to d)
 
 toStr : Instruction -> String
 toStr (Instruction a b c d) =
@@ -209,7 +222,7 @@ controls model =
         , button [ type_ "button", class "btn btn-danger", onClick (Running False) ] [ Html.text "Pause" ]
       ]
     ]
-    , div [id "info"] [
+    {--, div [id "info"] [
       Html.text ("File = " ++ Debug.toString model.file)
       , br [] []
       , Html.text ("Running: " ++ Debug.toString model.running ++ " | Tick: " ++ Debug.toString model.tick)
@@ -217,7 +230,7 @@ controls model =
       , Html.text ("Flags: " ++ Debug.toString model.machine.cpu.flags)
       , br [] []
       , Html.text ("Render commands: " ++ Debug.toString (List.length model.machine.graphics.cmds))
-    ]
+    ]--}
   ]
 
 inspector : Model -> Html Msg
@@ -271,6 +284,7 @@ screen model =
     , style "align-items" "center"
     ]
     [ lazy (\_ -> model.screen) model.screen ]
+    --[]
 
 render : Model -> Html Msg
 render model = 
@@ -287,9 +301,9 @@ view model =
     , div [class "d-flex flex-row"] [
         div [id "screen"] [
           screen model
-          , regs_table model
-        ],
-        inspector model
+          --, regs_table model
+        ]--,
+        --inspector model
     ]
     , controls model
     ]
