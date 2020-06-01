@@ -56,7 +56,7 @@ u8from : Int -> Number U8
 u8from = from u8interface
 
 intou8 : Number a -> Number U8
-intou8 (Number intfa va) = intfa.into va |> u8from
+intou8 (Number intfa va) = intfa.bits va |> u8from
 
 u16interface : NumberI U16
 u16interface =
@@ -72,7 +72,7 @@ u16from : Int -> Number U16
 u16from = from u16interface
 
 intou16 : Number a -> Number U16
-intou16 (Number intfa va) = intfa.into va |> u16from
+intou16 (Number intfa va) = intfa.bits va |> u16from
 
 i8interface : NumberI I8
 i8interface = 
@@ -88,7 +88,7 @@ i8from : Int -> Number I8
 i8from = from i8interface
 
 intoi8 : Number a -> Number I8
-intoi8 (Number intfa va) = intfa.into va |> i8from
+intoi8 (Number intfa va) = intfa.bits va |> i8from
 
 i16interface : NumberI I16
 i16interface = 
@@ -104,7 +104,7 @@ i16from : Int -> Number I16
 i16from = from i16interface
 
 intoi16 : Number a -> Number I16
-intoi16 (Number intfa va) = intfa.into va |> i16from
+intoi16 (Number intfa va) = intfa.bits va |> i16from
 
 ------------------------------------------------------------------
 --- ARITHMETIC
